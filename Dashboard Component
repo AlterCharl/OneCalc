@@ -1,0 +1,562 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  TouchableOpacity 
+} from 'react-native';
+import { Card, Title, Paragraph, ProgressBar } from 'react-native-paper';
+import { 
+  LineChart,
+  BarChart,
+  PieChart
+} from 'react-native-chart-kit';
+
+// Import the dashboard calculator
+import { calculateDashboard } from '../utils/calculators/dashboardCalculator';
+
+/**
+ * Dashboard Component
+ * 
+ * This component serves as the central integration point for all module results.
+ * It does NOT contain any direct calculation logic, only visualizes the
+ * aggregated results from individual module calculators.
+ */
+const Dashboard = () => {
+  // State
+  const [year, setYear] = useState(1); // Default to first year (2026)
+  const [useMaximum, setUseMaximum] = useState(false); // Default to minimum values
+  const [moduleResults, setModuleResults] = useState({}); // Results from all modules
+  const [moduleLockStatus, setModuleLockStatus] = useState({}); // Lock status for each module
+  const [dashboardResults, setDashboardResults] = useState(null); // Calculated dashboard results
+
+  // Handle receiving results from a module
+  const handleModuleResults = useCallback((moduleId, results) => {
+    setModuleResults(prevResults => ({
+      ...prevResults,
+      [moduleId]: results
+    }));
+    
+    // If module is being locked (results = null), update lock status
+    if (results === null) {
+      setModuleLockStatus(prevStatus => ({
+        ...prevStatus,
+        [moduleId]: true
+      }));
+    } else {
+      setModuleLockStatus(prevStatus => ({
+        ...prevStatus,
+        [moduleId]: false
+      }));
+    }
+  }, []);
+
+  // Calculate dashboard results when module results change
+  useEffect(() => {
+    // Calculate dashboard results based on module results
+    const results = calculateDashboard({
+      year,
+      useMaximum,
+      moduleResults,
+      moduleLockStatus
+    });
+    
+    setDashboardResults(results);
+  }, [year, useMaximum, moduleResults, moduleLockStatus]);
+
+  // Format currency for display
+  const formatCurrency = (value) => {
+    if (value === undefined || value === null) return 'R0';
+    return `R${value.toLocaleString('en-ZA')}`;
+  };
+
+  // Get year label
+  const getYearLabel = (yearValue) => {
+    switch(yearValue) {
+      case 1: return '2026 (Startup)';
+      case 2: return '2027 (Year 1)';
+      case 3: return '2028 (Year 2)';
+      case 4: return '2029 (Year 3)';
+      default: return `Year ${yearValue}`;
+    }
+  };
+
+  // Prepare chart data for cost vs revenue
+  const costVsRevenueData = {
+    labels: ['Year 1', 'Year 2', 'Year 3', 'Year 4'],
+    datasets: [
+      {
+        data: [0, 0, 0, 0], // Placeholder - would be populated with actual data
+        color: (opacity = 1) => `rgba(255, 0, 0, ${opacity})`, // Costs in red
+        strokeWidth: 2
+      },
+      {
+        data: [0, 0, 0, 0], // Placeholder - would be populated with actual data
+        color: (opacity = 1) => `rgba(0, 255, 0, ${opacity})`, // Revenue in green
+        strokeWidth: 2
+      }
+    ],
+    legend: ['Costs', 'Revenue']
+  };
+
+  // Prepare pie chart data for cost breakdown
+  const costBreakdownData = dashboardResults?.costBreakdown ? 
+    Object.keys(dashboardResults.costBreakdown).map((category, index) => ({
+      name: category,
+      value: dashboardResults.costBreakdown[category],
+      color: getColorByIndex(index),
+      legendFontColor: "#7F7F7F",
+      legendFontSize: 12
+    })) : [];
+
+  // Prepare pie chart data for revenue breakdown
+  const revenueBreakdownData = dashboardResults?.revenueBreakdown ? 
+    Object.keys(dashboardResults.revenueBreakdown).map((category, index) => ({
+      name: category,
+      value: dashboardResults.revenueBreakdown[category],
+      color: getColorByIndex(index + 5), // Offset to get different colors
+      legendFontColor: "#7F7F7F",
+      legendFontSize: 12
+    })) : [];
+
+  return (
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>OneWORLD Scenario Planner Dashboard</Text>
+      
+      {/* Year Selection */}
+      <Card style={styles.card}>
+        <Card.Content>
+          <Title>Projection Year</Title>
+          <View style={styles.yearSelector}>
+            {[1, 2, 3, 4].map((yearValue) => (
+              <TouchableOpacity
+                key={`year-${yearValue}`}
+                style={[
+                  styles.yearButton,
+                  year === yearValue && styles.selectedYearButton
+                ]}
+                onPress={() => setYear(yearValue)}
+              >
+                <Text 
+                  style={[
+                    styles.yearButtonText,
+                    year === yearValue && styles.selectedYearButtonText
+                  ]}
+                >
+                  {getYearLabel(yearValue)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Card.Content>
+      </Card>
+      
+      {/* Key Metrics */}
+      <Card style={styles.card}>
+        <Card.Content>
+          <Title>Key Financial Metrics</Title>
+          <View style={styles.metricsContainer}>
+            {/* Top Row */}
+            <View style={styles.metricsRow}>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricValue}>
+                  {dashboardResults?.formattedTotalCosts || 'R0'}
+                </Text>
+                <Text style={styles.metricLabel}>Total Costs</Text>
+              </View>
+              
+              <View style={styles.metricCard}>
+                <Text style={styles.metricValue}>
+                  {dashboardResults?.formattedTotalRevenue || 'R0'}
+                </Text>
+                <Text style={styles.metricLabel}>Total Revenue</Text>
+              </View>
+            </View>
+            
+            {/* Bottom Row */}
+            <View style={styles.metricsRow}>
+              <View style={[
+                styles.metricCard,
+                (dashboardResults?.netCashflow || 0) < 0 ? styles.negativeMetric : styles.positiveMetric
+              ]}>
+                <Text style={[
+                  styles.metricValue,
+                  (dashboardResults?.netCashflow || 0) < 0 ? styles.negativeValue : styles.positiveValue
+                ]}>
+                  {dashboardResults?.formattedNetCashflow || 'R0'}
+                </Text>
+                <Text style={styles.metricLabel}>Net Cashflow</Text>
+              </View>
+              
+              <View style={styles.metricCard}>
+                <Text style={styles.metricValue}>
+                  {dashboardResults?.metrics?.burnRate 
+                    ? formatCurrency(dashboardResults.metrics.burnRate) 
+                    : 'R0'}/mo
+                </Text>
+                <Text style={styles.metricLabel}>Monthly Burn Rate</Text>
+              </View>
+            </View>
+          </View>
+        </Card.Content>
+      </Card>
+      
+      {/* Cost vs Revenue Chart */}
+      <Card style={styles.card}>
+        <Card.Content>
+          <Title>Cost vs Revenue Projection</Title>
+          <LineChart
+            data={costVsRevenueData}
+            width={320}
+            height={220}
+            chartConfig={{
+              backgroundColor: '#1e2923',
+              backgroundGradientFrom: '#1e2923',
+              backgroundGradientTo: '#08130D',
+              decimalPlaces: 0,
+              color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+              labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+              style: {
+                borderRadius: 16
+              },
+              propsForDots: {
+                r: '6',
+                strokeWidth: '2',
+                stroke: '#ffa726'
+              }
+            }}
+            bezier
+            style={styles.chart}
+          />
+        </Card.Content>
+      </Card>
+      
+      {/* Included/Excluded Modules */}
+      <Card style={styles.card}>
+        <Card.Content>
+          <Title>Module Integration Status</Title>
+          
+          <View style={styles.moduleStatusSection}>
+            <Text style={styles.moduleStatusTitle}>Included Cost Modules:</Text>
+            {dashboardResults?.includedModules?.costs.length > 0 ? (
+              dashboardResults.includedModules.costs.map((module, index) => (
+                <View key={`cost-${index}`} style={styles.moduleStatusItem}>
+                  <Text style={styles.moduleStatusName}>{module}</Text>
+                  <Text style={styles.moduleStatusValue}>
+                    {dashboardResults.formattedCostBreakdown[module]}
+                  </Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.noModulesText}>No cost modules included</Text>
+            )}
+          </View>
+          
+          <View style={styles.moduleStatusSection}>
+            <Text style={styles.moduleStatusTitle}>Included Revenue Modules:</Text>
+            {dashboardResults?.includedModules?.revenue.length > 0 ? (
+              dashboardResults.includedModules.revenue.map((module, index) => (
+                <View key={`revenue-${index}`} style={styles.moduleStatusItem}>
+                  <Text style={styles.moduleStatusName}>{module}</Text>
+                  <Text style={styles.moduleStatusValue}>
+                    {dashboardResults.formattedRevenueBreakdown[module]}
+                  </Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.noModulesText}>No revenue modules included</Text>
+            )}
+          </View>
+        </Card.Content>
+      </Card>
+      
+      {/* Breakdown Charts */}
+      {(costBreakdownData.length > 0 || revenueBreakdownData.length > 0) && (
+        <Card style={styles.card}>
+          <Card.Content>
+            <Title>Breakdown Analysis</Title>
+            
+            {costBreakdownData.length > 0 && (
+              <View style={styles.breakdownSection}>
+                <Text style={styles.breakdownTitle}>Cost Breakdown</Text>
+                <PieChart
+                  data={costBreakdownData}
+                  width={320}
+                  height={220}
+                  chartConfig={{
+                    color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                  }}
+                  accessor="value"
+                  backgroundColor="transparent"
+                  paddingLeft="15"
+                  style={styles.chart}
+                />
+              </View>
+            )}
+            
+            {revenueBreakdownData.length > 0 && (
+              <View style={styles.breakdownSection}>
+                <Text style={styles.breakdownTitle}>Revenue Breakdown</Text>
+                <PieChart
+                  data={revenueBreakdownData}
+                  width={320}
+                  height={220}
+                  chartConfig={{
+                    color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                  }}
+                  accessor="value"
+                  backgroundColor="transparent"
+                  paddingLeft="15"
+                  style={styles.chart}
+                />
+              </View>
+            )}
+          </Card.Content>
+        </Card>
+      )}
+      
+      {/* Additional Metrics */}
+      <Card style={styles.card}>
+        <Card.Content>
+          <Title>Additional Metrics</Title>
+          
+          <View style={styles.additionalMetricsContainer}>
+            {/* Gross Margin */}
+            <View style={styles.metricItem}>
+              <View style={styles.metricItemHeader}>
+                <Text style={styles.metricItemLabel}>Gross Margin</Text>
+                <Text style={styles.metricItemValue}>
+                  {dashboardResults?.metrics?.grossMarginPercentage 
+                    ? `${dashboardResults.metrics.grossMarginPercentage.toFixed(1)}%`
+                    : '0%'}
+                </Text>
+              </View>
+              <ProgressBar 
+                progress={
+                  (dashboardResults?.metrics?.grossMarginPercentage || 0) / 100
+                } 
+                color="#4CAF50"
+                style={styles.progressBar}
+              />
+            </View>
+            
+            {/* Operating Margin */}
+            <View style={styles.metricItem}>
+              <View style={styles.metricItemHeader}>
+                <Text style={styles.metricItemLabel}>Operating Margin</Text>
+                <Text style={[
+                  styles.metricItemValue,
+                  (dashboardResults?.metrics?.operatingMarginPercentage || 0) < 0 
+                    ? styles.negativeMetricValue 
+                    : styles.positiveMetricValue
+                ]}>
+                  {dashboardResults?.metrics?.operatingMarginPercentage 
+                    ? `${dashboardResults.metrics.operatingMarginPercentage.toFixed(1)}%`
+                    : '0%'}
+                </Text>
+              </View>
+              <ProgressBar 
+                progress={Math.max(
+                  0, 
+                  (dashboardResults?.metrics?.operatingMarginPercentage || 0) / 100
+                )} 
+                color="#2196F3"
+                style={styles.progressBar}
+              />
+            </View>
+            
+            {/* Estimated Runway */}
+            <View style={styles.metricItem}>
+              <View style={styles.metricItemHeader}>
+                <Text style={styles.metricItemLabel}>Estimated Runway</Text>
+                <Text style={styles.metricItemValue}>
+                  {dashboardResults?.metrics?.runwayMonths === Infinity 
+                    ? 'Positive Cashflow' 
+                    : `${dashboardResults?.metrics?.runwayMonths || 0} months`}
+                </Text>
+              </View>
+            </View>
+            
+            {/* Headcount */}
+            <View style={styles.metricItem}>
+              <View style={styles.metricItemHeader}>
+                <Text style={styles.metricItemLabel}>Estimated Headcount</Text>
+                <Text style={styles.metricItemValue}>
+                  {dashboardResults?.metrics?.headcount || 0} employees
+                </Text>
+              </View>
+            </View>
+          </View>
+        </Card.Content>
+      </Card>
+    </ScrollView>
+  );
+};
+
+// Helper function to get colors for pie charts
+function getColorByIndex(index) {
+  const colors = [
+    '#FF5733', '#33FF57', '#3357FF', '#F3FF33', '#FF33F3',
+    '#FF8C33', '#33FFC7', '#8C33FF', '#FFEC33', '#33FFEC'
+  ];
+  
+  return colors[index % colors.length];
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#f5f5f5',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    color: '#333',
+    textAlign: 'center',
+  },
+  card: {
+    marginBottom: 16,
+    elevation: 2,
+  },
+  yearSelector: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  yearButton: {
+    flex: 1,
+    padding: 8,
+    margin: 4,
+    backgroundColor: '#eee',
+    borderRadius: 4,
+    alignItems: 'center',
+  },
+  selectedYearButton: {
+    backgroundColor: '#4CAF50',
+  },
+  yearButtonText: {
+    fontSize: 12,
+    color: '#333',
+  },
+  selectedYearButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  metricsContainer: {
+    marginTop: 8,
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  metricCard: {
+    flex: 1,
+    padding: 12,
+    marginHorizontal: 4,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  positiveMetric: {
+    backgroundColor: '#E8F5E9',
+  },
+  negativeMetric: {
+    backgroundColor: '#FFEBEE',
+  },
+  metricValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,
+    color: '#333',
+  },
+  positiveValue: {
+    color: '#4CAF50',
+  },
+  negativeValue: {
+    color: '#F44336',
+  },
+  metricLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  chart: {
+    marginVertical: 8,
+    borderRadius: 16,
+  },
+  moduleStatusSection: {
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  moduleStatusTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333',
+  },
+  moduleStatusItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  moduleStatusName: {
+    fontSize: 14,
+    color: '#333',
+  },
+  moduleStatusValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+  },
+  noModulesText: {
+    fontStyle: 'italic',
+    color: '#999',
+    padding: 8,
+  },
+  breakdownSection: {
+    marginVertical: 16,
+  },
+  breakdownTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333',
+  },
+  additionalMetricsContainer: {
+    marginTop: 8,
+  },
+  metricItem: {
+    marginBottom: 16,
+  },
+  metricItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  metricItemLabel: {
+    fontSize: 14,
+    color: '#333',
+  },
+  metricItemValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  positiveMetricValue: {
+    color: '#4CAF50',
+  },
+  negativeMetricValue: {
+    color: '#F44336',
+  },
+  progressBar: {
+    height: 8,
+    borderRadius: 4,
+  },
+});
+
+export default Dashboard;
