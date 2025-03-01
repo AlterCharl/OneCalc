@@ -1,0 +1,59 @@
+/src
+  /components
+    /ui                      # Reusable UI components (buttons, cards, etc.)
+    /dashboard               # Dashboard-specific components
+      DashboardSummary.jsx   # Summary of all calculations
+      CostVsRevenueChart.jsx # Visualization comparing costs and revenue
+      MetricsPanel.jsx       # Key financial metrics
+    /costs               
+      EmployeeCostsModule.jsx     # UI for employee costs
+      TechCostsModule.jsx         # UI for tech development costs
+      OperationalCostsModule.jsx  # UI for operational costs
+    /revenue
+      TransactionFeesModule.jsx     # UI for transaction fees
+      FarmerSubscriptionsModule.jsx # UI for farmer subscriptions
+      BuyerSubscriptionsModule.jsx  # UI for buyer subscriptions
+      LogisticsRevenueModule.jsx    # UI for logistics revenue
+      AncillaryIncomeModule.jsx     # UI for ancillary income
+    /common
+      SliderControl.jsx            # Standardized slider component
+      LockToggle.jsx               # Toggle to include/exclude from dashboard
+      YearSelector.jsx             # Year selection component
+      
+  /pages
+    Login.jsx               # Authentication page
+    Dashboard.jsx           # Main dashboard view
+    Costs.jsx               # Parent page for cost sections
+    Revenue.jsx             # Parent page for revenue sections
+    Schema.jsx              # Initial values configuration
+    Settings.jsx            # Application settings
+    
+  /contexts
+    AuthContext.jsx         # Authentication state
+    DashboardContext.jsx    # State for dashboard compilation only
+    
+  /utils
+    /calculators            # SEPARATE CALCULATOR FUNCTIONS BY MODULE
+      employeeCosts.js      # Calculator for employee costs
+      techCosts.js          # Calculator for tech costs
+      operationalCosts.js   # Calculator for operational costs
+      transactionFees.js    # Calculator for transaction fees
+      farmerSubscriptions.js # Calculator for farmer subscriptions
+      buyerSubscriptions.js  # Calculator for buyer subscriptions
+      logisticsRevenue.js    # Calculator for logistics revenue
+      ancillaryIncome.js     # Calculator for ancillary income
+    /helpers
+      formatters.js         # Data formatting helpers
+      validators.js         # Input validation
+      constants.js          # Application constants
+    
+  /services
+    firebase.js             # Firebase initialization
+    auth.js                 # Authentication methods
+    database.js             # Firestore methods
+    aiService.js            # Vertex AI integration
+    
+  /styles                   # Global styles and themes
+  
+  App.jsx                   # Main application component
+  index.jsx                 # Entry point
