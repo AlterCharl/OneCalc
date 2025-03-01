@@ -1,0 +1,124 @@
+/**
+ * Employee Costs Calculator
+ * 
+ * This calculator handles all computations related to employee costs.
+ * It is completely independent of other calculators and modules.
+ * 
+ * @param {Object} params Input parameters for the calculation
+ * @returns {Object} Calculation results
+ */
+export function calculateEmployeeCosts(params) {
+  const { 
+    schemaData,  // Current schema data for this section
+    year,        // Selected year (1-4)
+    useMaximum,  // Whether to use the maximum values (true) or minimum (false)
+    adjustmentFactor = 1.0, // Optional adjustment factor for sensitivity analysis
+  } = params;
+
+  if (!schemaData || !schemaData.categories) {
+    throw new Error('Invalid schema data provided to Employee Costs calculator');
+  }
+
+  const yearKey = `year${year}`;
+  const valueKey = useMaximum ? 'max' : 'min';
+  
+  // Initialize results structure
+  const results = {
+    totalEmployeeCost: 0,
+    yearLabel: getYearLabel(year),
+    categories: [],
+    byDepartment: {
+      management: 0,
+      development: 0,
+      design: 0,
+      qualityAssurance: 0,
+      businessAnalysis: 0
+    },
+    headcount: 0
+  };
+
+  // Process each employee category
+  schemaData.categories.forEach(category => {
+    if (!category[yearKey]) {
+      console.warn(`Missing year data for ${category.name} in year ${year}`);
+      return;
+    }
+
+    // Apply adjustment factor to the raw value
+    const rawValue = category[yearKey][valueKey] * adjustmentFactor;
+    const value = Math.round(rawValue); // Round to nearest rand
+    
+    // Add to total
+    results.totalEmployeeCost += value;
+    
+    // Categorize by department (simple mapping based on role name)
+    let department = 'management'; // Default
+    const name = category.name.toLowerCase();
+    
+    if (name.includes('developer') || name.includes('devops')) {
+      department = 'development';
+      results.byDepartment.development += value;
+    } else if (name.includes('designer') || name.includes('ux')) {
+      department = 'design';
+      results.byDepartment.design += value;
+    } else if (name.includes('qa') || name.includes('engineer')) {
+      department = 'qualityAssurance';
+      results.byDepartment.qualityAssurance += value;
+    } else if (name.includes('analyst')) {
+      department = 'businessAnalysis';
+      results.byDepartment.businessAnalysis += value;
+    } else {
+      results.byDepartment.management += value;
+    }
+    
+    // Estimate headcount (this is a simplified calculation)
+    const averageSalary = name.includes('senior') || 
+                         name.includes('lead') || 
+                         name.includes('manager') ? 720000 : 480000;
+    const estimatedHeadcount = value / averageSalary;
+    results.headcount += estimatedHeadcount;
+    
+    // Add detailed category info to results
+    results.categories.push({
+      name: category.name,
+      value,
+      department,
+      estimatedHeadcount,
+      notes: category.notes
+    });
+  });
+  
+  // Round headcount to nearest whole number
+  results.headcount = Math.round(results.headcount);
+  
+  // Add formatted values for display
+  results.formattedTotal = formatCurrency(results.totalEmployeeCost);
+  results.formattedByDepartment = {};
+  
+  for (const [dept, value] of Object.entries(results.byDepartment)) {
+    results.formattedByDepartment[dept] = formatCurrency(value);
+  }
+  
+  results.costPerEmployee = results.headcount > 0 
+    ? results.totalEmployeeCost / results.headcount 
+    : 0;
+  
+  results.formattedCostPerEmployee = formatCurrency(results.costPerEmployee);
+  
+  return results;
+}
+
+// Helper functions
+function getYearLabel(year) {
+  switch(year) {
+    case 1: return '2026 (Startup)';
+    case 2: return '2027 (Year 1)';
+    case 3: return '2028 (Year 2)';
+    case 4: return '2029 (Year 3)';
+    default: return `Year ${year}`;
+  }
+}
+
+function formatCurrency(value) {
+  return `R${value.toLocaleString('en-ZA')}`;
+}
