@@ -1,0 +1,28 @@
+# Development Rules & Guidelines
+
+## CRITICAL: Independent Calculator Architecture
+
+1. **Each cost and revenue page MUST have its own dedicated calculator function**
+2. **Calculator functions MUST NOT depend on each other**
+3. **No shared calculation logic between different modules**
+4. **All data integration must happen ONLY at the Dashboard level**
+
+## Calculator Implementation
+
+1. Each calculator must be located in its own file in the `/utils/calculators` directory
+2. Calculator function naming must follow the pattern: `calculate[ModuleName](parameters)`
+3. All calculators must accept a standardized parameter object and return a standardized result object
+4. Each calculator must include detailed documentation of its parameters and calculation methodology
+5. Examples:
+   ```javascript
+   // Employee costs calculator
+   export function calculateEmployeeCosts(params) {
+     // Standalone calculation logic
+     return resultObject;
+   }
+   
+   // Tech costs calculator - completely independent
+   export function calculateTechCosts(params) {
+     // Standalone calculation logic
+     return resultObject;
+   }
