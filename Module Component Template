@@ -1,0 +1,518 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, Switch, TouchableOpacity } from 'react-native';
+import { Card } from 'react-native-paper';
+import { LineChart } from 'react-native-chart-kit';
+import Slider from '@react-native-community/slider';
+
+// Import the specific calculator for this module
+import { calculateEmployeeCosts } from '../utils/calculators/employeeCosts';
+
+/**
+ * Module Component Template
+ * 
+ * This template can be used for any cost or revenue module.
+ * Each module has its own independent calculator and state.
+ * 
+ * Instructions:
+ * 1. Copy this template for each module
+ * 2. Import the correct calculator function
+ * 3. Customize the UI to fit the module's specific needs
+ * 4. Make sure to keep the Lock/Unlock functionality
+ */
+const ModuleTemplate = ({ 
+  moduleId, // Unique ID for this module
+  title, // Display title
+  schemaData, // Current schema data for this section
+  onResultsCalculated, // Callback to send results to Dashboard
+  initialLockStatus = false // Whether this module is initially locked
+}) => {
+  // State for module parameters and results
+  const [year, setYear] = useState(1); // Default to first year (2026)
+  const [useMaximum, setUseMaximum] = useState(false); // Default to minimum values
+  const [adjustmentFactor, setAdjustmentFactor] = useState(1.0); // Default to no adjustment
+  const [locked, setLocked] = useState(initialLockStatus); // Lock status for Dashboard integration
+  const [results, setResults] = useState(null); // Calculation results
+  
+  // Additional module-specific parameters
+  // Example: For Employee Costs module
+  const [departmentAdjustments, setDepartmentAdjustments] = useState({
+    management: 1.0,
+    development: 1.0,
+    design: 1.0,
+    qualityAssurance: 1.0,
+    businessAnalysis: 1.0
+  });
+
+  // Function to run calculations and update results
+  const calculateResults = useCallback(() => {
+    if (!schemaData) return;
+    
+    // Prepare parameters for the calculator
+    const params = {
+      schemaData,
+      year,
+      useMaximum,
+      adjustmentFactor,
+      // Additional module-specific parameters
+      // Example for Employee Costs:
+      departmentAdjustments
+    };
+    
+    // Call the module's specific calculator
+    const calculatedResults = calculateEmployeeCosts(params);
+    
+    // Update local state with results
+    setResults(calculatedResults);
+    
+    // Send results to Dashboard if module is unlocked
+    if (!locked && onResultsCalculated) {
+      onResultsCalculated(moduleId, calculatedResults);
+    }
+  }, [
+    schemaData, 
+    year, 
+    useMaximum, 
+    adjustmentFactor, 
+    departmentAdjustments, 
+    locked, 
+    onResultsCalculated, 
+    moduleId
+  ]);
+
+  // Calculate results when parameters change
+  useEffect(() => {
+    calculateResults();
+  }, [calculateResults]);
+
+  // Toggle lock status and notify Dashboard
+  const toggleLock = () => {
+    const newLockStatus = !locked;
+    setLocked(newLockStatus);
+    
+    // If unlocking, send current results to Dashboard
+    if (!newLockStatus && results && onResultsCalculated) {
+      onResultsCalculated(moduleId, results);
+    }
+    
+    // If locking, notify Dashboard to remove this module's results
+    if (newLockStatus && onResultsCalculated) {
+      onResultsCalculated(moduleId, null);
+    }
+  };
+
+  // Format currency for display
+  const formatCurrency = (value) => {
+    return `R${value.toLocaleString('en-ZA')}`;
+  };
+
+  // Get year label
+  const getYearLabel = (yearValue) => {
+    switch(yearValue) {
+      case 1: return '2026 (Startup)';
+      case 2: return '2027 (Year 1)';
+      case 3: return '2028 (Year 2)';
+      case 4: return '2029 (Year 3)';
+      default: return `Year ${yearValue}`;
+    }
+  };
+
+  // Prepare chart data (if results are available)
+  const chartData = {
+    labels: ['Y1', 'Y2', 'Y3', 'Y4'],
+    datasets: [
+      {
+        data: [
+          schemaData?.categories?.[0]?.year1?.[useMaximum ? 'max' : 'min'] || 0,
+          schemaData?.categories?.[0]?.year2?.[useMaximum ? 'max' : 'min'] || 0,
+          schemaData?.categories?.[0]?.year3?.[useMaximum ? 'max' : 'min'] || 0,
+          schemaData?.categories?.[0]?.year4?.[useMaximum ? 'max' : 'min'] || 0,
+        ]
+      }
+    ]
+  };
+
+  return (
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>{title}</Text>
+        <View style={styles.lockContainer}>
+          <Text style={styles.lockLabel}>
+            {locked ? 'Locked (Excluded from Dashboard)' : 'Unlocked (Included in Dashboard)'}
+          </Text>
+          <Switch
+            value={!locked}
+            onValueChange={toggleLock}
+            trackColor={{ false: '#767577', true: '#81b0ff' }}
+            thumbColor={!locked ? '#f5dd4b' : '#f4f3f4'}
+          />
+        </View>
+      </View>
+      
+      {/* Year Selection */}
+      <Card style={styles.card}>
+        <Card.Title title="Projection Year" />
+        <Card.Content>
+          <View style={styles.yearSelector}>
+            {[1, 2, 3, 4].map((yearValue) => (
+              <TouchableOpacity
+                key={`year-${yearValue}`}
+                style={[
+                  styles.yearButton,
+                  year === yearValue && styles.selectedYearButton
+                ]}
+                onPress={() => setYear(yearValue)}
+              >
+                <Text 
+                  style={[
+                    styles.yearButtonText,
+                    year === yearValue && styles.selectedYearButtonText
+                  ]}
+                >
+                  {getYearLabel(yearValue)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Card.Content>
+      </Card>
+      
+      {/* Scenario Settings */}
+      <Card style={styles.card}>
+        <Card.Title title="Scenario Settings" />
+        <Card.Content>
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Use Maximum Values:</Text>
+            <Switch
+              value={useMaximum}
+              onValueChange={setUseMaximum}
+              trackColor={{ false: '#767577', true: '#81b0ff' }}
+              thumbColor={useMaximum ? '#f5dd4b' : '#f4f3f4'}
+            />
+          </View>
+          
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Adjustment Factor: {adjustmentFactor.toFixed(2)}x</Text>
+          </View>
+          <Slider
+            style={styles.slider}
+            minimumValue={0.5}
+            maximumValue={1.5}
+            step={0.05}
+            value={adjustmentFactor}
+            onValueChange={setAdjustmentFactor}
+            minimumTrackTintColor="#4CAF50"
+            maximumTrackTintColor="#000000"
+            thumbTintColor="#4CAF50"
+          />
+          
+          {/* Module-specific adjustments */}
+          <Text style={styles.sectionTitle}>Department Adjustments</Text>
+          {Object.keys(departmentAdjustments).map((dept) => (
+            <View key={dept} style={styles.departmentRow}>
+              <Text style={styles.departmentLabel}>
+                {dept.charAt(0).toUpperCase() + dept.slice(1)}: {departmentAdjustments[dept].toFixed(2)}x
+              </Text>
+              <Slider
+                style={styles.slider}
+                minimumValue={0.5}
+                maximumValue={1.5}
+                step={0.05}
+                value={departmentAdjustments[dept]}
+                onValueChange={(value) => 
+                  setDepartmentAdjustments({
+                    ...departmentAdjustments,
+                    [dept]: value
+                  })
+                }
+                minimumTrackTintColor="#4CAF50"
+                maximumTrackTintColor="#000000"
+                thumbTintColor="#4CAF50"
+              />
+            </View>
+          ))}
+        </Card.Content>
+      </Card>
+      
+      {/* Results Section */}
+      {results && (
+        <Card style={styles.card}>
+          <Card.Title title="Calculation Results" />
+          <Card.Content>
+            <View style={styles.resultsContainer}>
+              <View style={styles.resultRow}>
+                <Text style={styles.resultLabel}>Total:</Text>
+                <Text style={styles.resultValue}>{results.formattedTotal || formatCurrency(0)}</Text>
+              </View>
+              
+              {/* Module-specific result displays */}
+              {results.categories && results.categories.map((category, index) => (
+                <View key={`category-${index}`} style={styles.categoryRow}>
+                  <Text style={styles.categoryName}>{category.name}</Text>
+                  <Text style={styles.categoryValue}>{formatCurrency(category.value)}</Text>
+                </View>
+              ))}
+              
+              {/* Additional metrics (module-specific) */}
+              {results.headcount && (
+                <View style={styles.metricRow}>
+                  <Text style={styles.metricLabel}>Estimated Headcount:</Text>
+                  <Text style={styles.metricValue}>{results.headcount}</Text>
+                </View>
+              )}
+              
+              {/* Show growth info if available and not in first year */}
+              {results.yoyGrowthPercentage && year > 1 && (
+                <View style={styles.metricRow}>
+                  <Text style={styles.metricLabel}>Year-over-Year Growth:</Text>
+                  <Text style={styles.metricValue}>{results.formattedYoYGrowth}</Text>
+                </View>
+              )}
+            </View>
+          </Card.Content>
+        </Card>
+      )}
+      
+      {/* Visualization Section */}
+      <Card style={styles.card}>
+        <Card.Title title="Projection Visualization" />
+        <Card.Content>
+          <LineChart
+            data={chartData}
+            width={320}
+            height={220}
+            chartConfig={{
+              backgroundColor: '#e26a00',
+              backgroundGradientFrom: '#fb8c00',
+              backgroundGradientTo: '#ffa726',
+              decimalPlaces: 0,
+              color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+              labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+              style: {
+                borderRadius: 16,
+              },
+              propsForDots: {
+                r: '6',
+                strokeWidth: '2',
+                stroke: '#ffa726',
+              },
+            }}
+            bezier
+            style={{
+              marginVertical: 8,
+              borderRadius: 16,
+            }}
+          />
+        </Card.Content>
+      </Card>
+      
+      {/* Category Detail Section */}
+      <Card style={styles.card}>
+        <Card.Title title="Category Details" />
+        <Card.Content>
+          {schemaData?.categories?.map((category, index) => (
+            <View key={`detail-${index}`} style={styles.detailRow}>
+              <Text style={styles.detailName}>{category.name}</Text>
+              <Text style={styles.detailNotes}>{category.notes}</Text>
+              <View style={styles.yearValuesContainer}>
+                {[1, 2, 3, 4].map((yearNum) => (
+                  <View key={`year-value-${yearNum}`} style={styles.yearValue}>
+                    <Text style={styles.yearValueLabel}>Year {yearNum}:</Text>
+                    <Text style={styles.yearValueMin}>
+                      Min: {formatCurrency(category[`year${yearNum}`]?.min || 0)}
+                    </Text>
+                    <Text style={styles.yearValueMax}>
+                      Max: {formatCurrency(category[`year${yearNum}`]?.max || 0)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ))}
+        </Card.Content>
+      </Card>
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#f5f5f5',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  lockContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  lockLabel: {
+    marginRight: 8,
+    fontSize: 12,
+    color: '#666',
+  },
+  card: {
+    marginBottom: 16,
+    elevation: 2,
+  },
+  yearSelector: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  yearButton: {
+    flex: 1,
+    padding: 8,
+    margin: 4,
+    backgroundColor: '#eee',
+    borderRadius: 4,
+    alignItems: 'center',
+  },
+  selectedYearButton: {
+    backgroundColor: '#4CAF50',
+  },
+  yearButtonText: {
+    fontSize: 12,
+    color: '#333',
+  },
+  selectedYearButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  settingLabel: {
+    fontSize: 16,
+    color: '#333',
+  },
+  slider: {
+    width: '100%',
+    height: 40,
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 16,
+    marginBottom: 8,
+    color: '#333',
+  },
+  departmentRow: {
+    marginBottom: 12,
+  },
+  departmentLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  resultsContainer: {
+    marginVertical: 8,
+  },
+  resultRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#f0f8ff',
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  resultLabel: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  resultValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  categoryName: {
+    fontSize: 16,
+    color: '#333',
+  },
+  categoryValue: {
+    fontSize: 16,
+    color: '#333',
+  },
+  metricRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+    padding: 8,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 4,
+  },
+  metricLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  metricValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  detailRow: {
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50',
+  },
+  detailName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+    color: '#333',
+  },
+  detailNotes: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    color: '#666',
+    marginBottom: 8,
+  },
+  yearValuesContainer: {
+    marginTop: 8,
+  },
+  yearValue: {
+    marginBottom: 8,
+  },
+  yearValueLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  yearValueMin: {
+    fontSize: 14,
+    color: '#666',
+  },
+  yearValueMax: {
+    fontSize: 14,
+    color: '#666',
+  },
+});
+
+export default ModuleTemplate;
