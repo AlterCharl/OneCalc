@@ -3,10 +3,10 @@ import { useDashboard } from '../../contexts/DashboardContext';
 import { useSchemaData } from '../../contexts/SchemaContext';
 import { calculateTransactionFees, defaultTransactionFeesParams } from '../../utils/calculators/transactionFees';
 import YearSelector from '../common/YearSelector';
-import Slider from '../common/Slider';
 import ModuleCard from '../common/ModuleCard';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { createComparisonKey } from '../../utils/deepEqual';
+import OptimizedSlider from '../common/OptimizedSlider';
 
 /**
  * TransactionFeesModule - Calculates transaction fee revenue
@@ -219,143 +219,13 @@ const TransactionFeesModule = () => {
   
   // Format currency values
   const formatCurrency = (value) => {
-    return `R ${Number(value).toLocaleString()}`;
+    return new Intl.NumberFormat('en-ZA', {
+      style: 'currency',
+      currency: 'ZAR',
+      maximumFractionDigits: 0
+    }).format(value);
   };
   
-  // Function to render results
-  const renderResults = () => {
-    if (!calculationResults.totalRevenueByYear) {
-      return <div className="text-center py-4">No data available</div>;
-    }
-    
-    const selectedYearStr = selectedYear.toString();
-    const totalRevenue = calculationResults.totalRevenueByYear[selectedYearStr] || 0;
-    const transactionVolume = calculationResults.transactionVolumeByYear?.[selectedYearStr] || 0;
-    const avgOrderValue = calculationResults.averageOrderValueByYear?.[selectedYearStr] || 0;
-    const feePercentage = calculationResults.effectiveFeePercentageByYear?.[selectedYearStr] || 0;
-    
-    return (
-      <div className="space-y-6">
-        {/* Revenue metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <div className="text-sm text-blue-600 font-medium">Total Revenue ({selectedYear})</div>
-            <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
-          </div>
-          
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="text-sm text-gray-600 font-medium">Revenue per Transaction</div>
-            <div className="text-2xl font-bold">
-              {formatCurrency(avgOrderValue * (feePercentage / 100))}
-            </div>
-          </div>
-        </div>
-        
-        {/* Parameter info */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-3 border rounded-lg">
-            <div className="text-sm text-gray-500">Transaction Volume</div>
-            <div className="font-semibold">{transactionVolume.toLocaleString()}</div>
-          </div>
-          
-          <div className="p-3 border rounded-lg">
-            <div className="text-sm text-gray-500">Average Order Value</div>
-            <div className="font-semibold">{formatCurrency(avgOrderValue)}</div>
-          </div>
-          
-          <div className="p-3 border rounded-lg">
-            <div className="text-sm text-gray-500">Fee Percentage</div>
-            <div className="font-semibold">{feePercentage}%</div>
-          </div>
-        </div>
-        
-        {/* Schema info (when using schema) */}
-        {useSchemaAsBase && (
-          <div className="p-4 bg-green-50 rounded-lg">
-            <h3 className="font-medium text-green-700 mb-2">Using Schema Data</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <div className="text-sm text-gray-600">Traditional Market</div>
-                <div className="font-medium">
-                  {formatCurrency(
-                    (schemaTransactionFees.traditional_market?.yearData[selectedYearStr]?.min || 0) +
-                    (schemaTransactionFees.traditional_market?.yearData[selectedYearStr]?.max || 0)
-                  ) / 2}
-                </div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-600">B2B Market</div>
-                <div className="font-medium">
-                  {formatCurrency(
-                    (schemaTransactionFees.b2b?.yearData[selectedYearStr]?.min || 0) +
-                    (schemaTransactionFees.b2b?.yearData[selectedYearStr]?.max || 0)
-                  ) / 2}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {/* Revenue chart */}
-        <div className="h-64 mt-4">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="year" />
-              <YAxis 
-                tickFormatter={(value) => `R${value/1000000}M`}
-                width={60}
-              />
-              <Tooltip 
-                formatter={(value, name) => [
-                  `R ${Number(value).toLocaleString()}`, 
-                  name === 'revenue' ? 'Projected Revenue' : 
-                  name === 'schemaRevenue' ? 'Schema Revenue' :
-                  name === 'schemaTraditional' ? 'Traditional Market' :
-                  name === 'schemaB2B' ? 'B2B Market' : name
-                ]}
-              />
-              <Legend />
-              <Line 
-                type="monotone" 
-                dataKey="revenue" 
-                stroke="#3B82F6" 
-                strokeWidth={2} 
-                activeDot={{ r: 8 }} 
-                name="Projected Revenue"
-              />
-              {useSchemaAsBase && (
-                <>
-                  <Line 
-                    type="monotone" 
-                    dataKey="schemaTraditional" 
-                    stroke="#10B981" 
-                    strokeWidth={2} 
-                    strokeDasharray="5 5" 
-                    name="Traditional Market"
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="schemaB2B" 
-                    stroke="#8B5CF6" 
-                    strokeWidth={2} 
-                    strokeDasharray="5 5" 
-                    name="B2B Market"
-                  />
-                </>
-              )}
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    );
-  };
-
-  // Handle year selection with debouncing
-  const handleYearChange = useCallback((year) => {
-    setSelectedYear(year);
-  }, []);
-
   // Function to handle pause/resume
   const handlePauseToggle = useCallback(() => {
     setIsPaused(prev => !prev);
@@ -395,37 +265,39 @@ const TransactionFeesModule = () => {
       />
       
       <div className="space-y-6">
-        <Slider 
+        <OptimizedSlider
           label="Transaction Volume"
+          min={100}
+          max={100000}
+          step={100}
           value={params.transactionVolume[selectedYear]}
-          min={0}
-          max={2000000}
-          step={10000}
           onChange={(value) => updateParamForYear('transactionVolume', value)}
+          tooltip="Adjust expected monthly transaction volume"
           disabled={isLocked || useSchemaAsBase}
-          formatter={(value) => `${Number(value).toLocaleString()} transactions`}
         />
         
-        <Slider 
-          label="Average Order Value"
+        <OptimizedSlider
+          label="Average Transaction Value"
+          min={50}
+          max={10000}
+          step={50}
           value={params.averageOrderValue[selectedYear]}
-          min={0}
-          max={2000}
-          step={10}
           onChange={(value) => updateParamForYear('averageOrderValue', value)}
+          valuePrefix="R"
+          tooltip="Adjust average transaction value"
           disabled={isLocked}
-          formatter={(value) => `R ${Number(value).toLocaleString()}`}
         />
         
-        <Slider 
+        <OptimizedSlider
           label="Fee Percentage"
-          value={params.feePercentage[selectedYear]}
-          min={0}
-          max={10}
+          min={0.5}
+          max={5}
           step={0.1}
+          value={params.feePercentage[selectedYear]}
           onChange={(value) => updateParamForYear('feePercentage', value)}
+          valueSuffix="%"
+          tooltip="Adjust transaction fee percentage"
           disabled={isLocked}
-          formatter={(value) => `${value}%`}
         />
       </div>
     </div>

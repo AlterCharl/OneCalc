@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useSchemaData } from '../../contexts/SchemaContext';
 import { useModuleData } from '../../contexts/ModuleContext';
 import useDebouncedCallback from '../../hooks/useDebouncedCallback';
-import EnhancedCostSliders from '../costs/EnhancedCostSliders';
+import OptimizedRevenueSliders from './OptimizedRevenueSliders';
 
 /**
  * SchemaBasedRevenueModule
@@ -13,7 +13,7 @@ const SchemaBasedRevenueModule = () => {
   const { schemaData, updateSchemaItem } = useSchemaData();
   
   // Get module data
-  const { setModuleData, registerModuleCalculation, yearRange } = useModuleData();
+  const { registerModuleCalculation, yearRange } = useModuleData();
   
   // State for selected year and category
   const [selectedYear, setSelectedYear] = useState(2026);
@@ -390,7 +390,7 @@ const SchemaBasedRevenueModule = () => {
                           </div>
                         </div>
                         
-                        <EnhancedCostSliders
+                        <OptimizedRevenueSliders
                           itemId={item.id}
                           yearData={yearData}
                           selectedYear={selectedYear}

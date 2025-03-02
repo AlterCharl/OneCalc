@@ -12,6 +12,7 @@ const CostsPage = lazy(() => import('./pages/CostsPage'));
 const RevenuePage = lazy(() => import('./pages/RevenuePage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const ReportsPage = lazy(() => import('./pages/ReportsPage'));
+const SliderTestPage = lazy(() => import('./pages/SliderTestPage'));
 
 // Simple fallback schema page component for when lazy loading fails
 const FallbackSchemaPage = () => {
@@ -148,7 +149,8 @@ const App = () => {
     { id: 'revenue', label: 'Revenue Modules', icon: '💵' },
     { id: 'reports', label: 'Reports', icon: '📈' },
     { id: 'scenarios', label: 'Scenarios', icon: '📝' },
-    { id: 'settings', label: 'Settings', icon: '⚙️' }
+    { id: 'settings', label: 'Settings', icon: '⚙️' },
+    { id: 'slidertest', label: 'Slider Test', icon: '🎚️' },
   ];
   
   // Preload components when app starts
@@ -284,6 +286,14 @@ const App = () => {
                           <ErrorBoundary componentName="SettingsPage">
                             <Suspense fallback={<LoadingFallback message="Loading settings..." />}>
                               <SettingsPage />
+                            </Suspense>
+                          </ErrorBoundary>
+                        )}
+                        
+                        {activeView === 'slidertest' && (
+                          <ErrorBoundary componentName="SliderTestPage">
+                            <Suspense fallback={<LoadingFallback message="Loading slider test page..." />}>
+                              <SliderTestPage />
                             </Suspense>
                           </ErrorBoundary>
                         )}
