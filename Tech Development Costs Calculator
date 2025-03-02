@@ -1,0 +1,175 @@
+/**
+ * Tech Development Costs Calculator
+ * 
+ * This calculator handles all computations related to technology development costs.
+ * It is completely independent of other calculators and modules.
+ * 
+ * @param {Object} params Input parameters for the calculation
+ * @returns {Object} Calculation results
+ */
+export function calculateTechCosts(params) {
+  const { 
+    schemaData,  // Current schema data for this section
+    year,        // Selected year (1-4)
+    useMaximum,  // Whether to use the maximum values (true) or minimum (false)
+    adjustmentFactor = 1.0, // Optional adjustment factor for sensitivity analysis
+    developmentSpeedFactor = 1.0, // Optional factor for development speed
+    complexityFactor = 1.0 // Optional factor for project complexity
+  } = params;
+
+  if (!schemaData || !schemaData.categories) {
+    throw new Error('Invalid schema data provided to Tech Costs calculator');
+  }
+
+  const yearKey = `year${year}`;
+  const valueKey = useMaximum ? 'max' : 'min';
+  
+  // Initialize results structure
+  const results = {
+    totalTechCost: 0,
+    yearLabel: getYearLabel(year),
+    categories: [],
+    byCategory: {
+      infrastructure: 0,
+      databases: 0,
+      aiMl: 0,
+      apis: 0,
+      devOps: 0,
+      security: 0
+    },
+    monthlyRecurringCost: 0,
+    oneTimeCosts: 0
+  };
+
+  // Categorization mappings
+  const categoryMappings = {
+    'Cloud Infrastructure': 'infrastructure',
+    'Firebase Services': 'databases',
+    'Vertex AI Implementation': 'aiMl',
+    'Third-Party APIs/Services': 'apis',
+    'DevOps Tooling': 'devOps',
+    'Security Implementation': 'security'
+  };
+  
+  // Estimate which costs are recurring vs one-time
+  const recurringRatios = {
+    'Cloud Infrastructure': 0.9, // 90% recurring
+    'Firebase Services': 0.95, // 95% recurring
+    'Vertex AI Implementation': 0.7, // 70% recurring
+    'Third-Party APIs/Services': 0.85, // 85% recurring
+    'DevOps Tooling': 0.6, // 60% recurring
+    'Security Implementation': 0.5 // 50% recurring
+  };
+
+  // Apply development speed and complexity factors to the adjustment
+  const combinedAdjustment = adjustmentFactor * developmentSpeedFactor * complexityFactor;
+
+  // Process each tech category
+  schemaData.categories.forEach(category => {
+    if (!category[yearKey]) {
+      console.warn(`Missing year data for ${category.name} in year ${year}`);
+      return;
+    }
+
+    // Apply combined adjustment to the raw value
+    const rawValue = category[yearKey][valueKey] * combinedAdjustment;
+    const value = Math.round(rawValue); // Round to nearest rand
+    
+    // Add to total
+    results.totalTechCost += value;
+    
+    // Categorize by tech category
+    const categoryKey = categoryMappings[category.name] || 'other';
+    if (results.byCategory[categoryKey] !== undefined) {
+      results.byCategory[categoryKey] += value;
+    }
+    
+    // Calculate recurring vs one-time costs
+    const recurringRatio = recurringRatios[category.name] || 0.7; // Default to 70% recurring
+    const recurringCost = value * recurringRatio;
+    const oneTimeCost = value - recurringCost;
+    
+    results.monthlyRecurringCost += recurringCost / 12; // Divide annual cost by 12
+    results.oneTimeCosts += oneTimeCost;
+    
+    // Add detailed category info to results
+    results.categories.push({
+      name: category.name,
+      value,
+      category: categoryKey,
+      recurringCost,
+      oneTimeCost,
+      monthlyRecurring: recurringCost / 12,
+      notes: category.notes
+    });
+  });
+  
+  // Add formatted values for display
+  results.formattedTotal = formatCurrency(results.totalTechCost);
+  results.formattedMonthlyRecurring = formatCurrency(results.monthlyRecurringCost);
+  results.formattedOneTimeCosts = formatCurrency(results.oneTimeCosts);
+  
+  results.formattedByCategory = {};
+  for (const [category, value] of Object.entries(results.byCategory)) {
+    results.formattedByCategory[category] = formatCurrency(value);
+  }
+  
+  // Add year-over-year metrics
+  if (year > 1) {
+    results.yoyGrowthPercentage = calculateYoYGrowth(
+      schemaData, 
+      year, 
+      useMaximum,
+      combinedAdjustment
+    );
+    
+    results.formattedYoYGrowth = `${results.yoyGrowthPercentage.toFixed(1)}%`;
+  }
+  
+  // Calculate tech cost as a percentage of total costs (estimated)
+  // This would normally come from the Dashboard, but we can estimate it
+  results.percentOfTotalCosts = 0.25; // Placeholder - would be calculated by Dashboard
+  
+  // Calculate cost per user metrics (if we had user counts)
+  results.costPerUser = 0; // Placeholder
+  
+  return results;
+}
+
+// Helper function to calculate year-over-year growth
+function calculateYoYGrowth(schemaData, currentYear, useMaximum, adjustmentFactor) {
+  if (currentYear <= 1) return 0;
+  
+  const valueKey = useMaximum ? 'max' : 'min';
+  const currentYearKey = `year${currentYear}`;
+  const previousYearKey = `year${currentYear - 1}`;
+  
+  let currentTotal = 0;
+  let previousTotal = 0;
+  
+  schemaData.categories.forEach(category => {
+    if (category[currentYearKey] && category[previousYearKey]) {
+      currentTotal += category[currentYearKey][valueKey] * adjustmentFactor;
+      previousTotal += category[previousYearKey][valueKey] * adjustmentFactor;
+    }
+  });
+  
+  if (previousTotal === 0) return 0;
+  
+  return ((currentTotal - previousTotal) / previousTotal) * 100;
+}
+
+// Helper functions
+function getYearLabel(year) {
+  switch(year) {
+    case 1: return '2026 (Startup)';
+    case 2: return '2027 (Year 1)';
+    case 3: return '2028 (Year 2)';
+    case 4: return '2029 (Year 3)';
+    default: return `Year ${year}`;
+  }
+}
+
+function formatCurrency(value) {
+  return `R${value.toLocaleString('en-ZA')}`;
+}

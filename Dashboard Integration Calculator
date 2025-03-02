@@ -1,0 +1,164 @@
+/**
+ * Dashboard Calculator
+ * 
+ * This calculator handles the integration of all independent module calculators.
+ * It does NOT contain any calculation logic itself, only aggregation of results
+ * from the individual module calculators.
+ * 
+ * @param {Object} params Input parameters for the calculation
+ * @returns {Object} Aggregated calculation results
+ */
+export function calculateDashboard(params) {
+  const {
+    year,              // Selected year (1-4)
+    useMaximum,        // Whether to use maximum values (true) or minimum (false)
+    moduleResults,     // Results from all module calculators
+    moduleLockStatus,  // Which modules are locked/unlocked
+  } = params;
+
+  // Validate inputs
+  if (!moduleResults || typeof moduleResults !== 'object') {
+    throw new Error('Invalid module results provided to Dashboard calculator');
+  }
+
+  // Initialize dashboard results structure
+  const results = {
+    yearLabel: getYearLabel(year),
+    totalCosts: 0,
+    totalRevenue: 0,
+    netCashflow: 0,
+    cumulativeCashflow: 0,
+    costBreakdown: {},
+    revenueBreakdown: {},
+    metrics: {
+      burnRate: 0,
+      runwayMonths: 0,
+      grossMarginPercentage: 0,
+      operatingMarginPercentage: 0,
+      revenueGrowth: 0,
+      headcount: 0
+    },
+    includedModules: {
+      costs: [],
+      revenue: []
+    }
+  };
+
+  // Aggregate cost modules
+  const costModules = [
+    { id: 'employeeCosts', key: 'totalEmployeeCost', label: 'Employee Costs' },
+    { id: 'techCosts', key: 'totalTechCost', label: 'Tech Development' },
+    { id: 'operationalCosts', key: 'totalOperationalCost', label: 'Operational Costs' }
+  ];
+
+  costModules.forEach(module => {
+    if (
+      moduleResults[module.id] && 
+      !moduleLockStatus[module.id] &&  // Only include unlocked modules
+      typeof moduleResults[module.id][module.key] === 'number'
+    ) {
+      const moduleValue = moduleResults[module.id][module.key];
+      results.totalCosts += moduleValue;
+      results.costBreakdown[module.label] = moduleValue;
+      results.includedModules.costs.push(module.label);
+    }
+  });
+
+  // Aggregate revenue modules
+  const revenueModules = [
+    { id: 'transactionFees', key: 'totalTransactionFeeRevenue', label: 'Transaction Fees' },
+    { id: 'farmerSubscriptions', key: 'totalSubscriptionRevenue', label: 'Farmer Subscriptions' },
+    { id: 'buyerSubscriptions', key: 'totalSubscriptionRevenue', label: 'Buyer Subscriptions' },
+    { id: 'logisticsRevenue', key: 'totalLogisticsRevenue', label: 'Logistics Revenue' },
+    { id: 'ancillaryIncome', key: 'totalAncillaryRevenue', label: 'Ancillary Income' }
+  ];
+
+  revenueModules.forEach(module => {
+    if (
+      moduleResults[module.id] &&
+      !moduleLockStatus[module.id] &&  // Only include unlocked modules
+      typeof moduleResults[module.id][module.key] === 'number'
+    ) {
+      const moduleValue = moduleResults[module.id][module.key];
+      results.totalRevenue += moduleValue;
+      results.revenueBreakdown[module.label] = moduleValue;
+      results.includedModules.revenue.push(module.label);
+    }
+  });
+
+  // Calculate net and cumulative cashflow
+  results.netCashflow = results.totalRevenue - results.totalCosts;
+  
+  // For cumulative cashflow, we would need historical data
+  // This is a placeholder - would be calculated with previous years' data
+  results.cumulativeCashflow = results.netCashflow;
+
+  // Calculate metrics
+  results.metrics.burnRate = results.totalCosts / 12; // Monthly burn rate
+  
+  // Runway in months (only applicable if cashflow is negative)
+  if (results.netCashflow < 0) {
+    // Assume we have 18 months of runway with current burn rate
+    // In a real app, this would be calculated based on available cash
+    results.metrics.runwayMonths = 18;
+  } else {
+    results.metrics.runwayMonths = Infinity; // Positive cashflow means infinite runway
+  }
+  
+  // Gross margin (revenue - COGS) / revenue
+  // For simplicity, assuming COGS is 30% of tech and operational costs
+  const estimatedCOGS = 0.3 * (
+    (results.costBreakdown['Tech Development'] || 0) + 
+    (results.costBreakdown['Operational Costs'] || 0)
+  );
+  
+  results.metrics.grossMarginPercentage = results.totalRevenue > 0
+    ? ((results.totalRevenue - estimatedCOGS) / results.totalRevenue) * 100
+    : 0;
+    
+  // Operating margin (revenue - all costs) / revenue
+  results.metrics.operatingMarginPercentage = results.totalRevenue > 0
+    ? (results.netCashflow / results.totalRevenue) * 100
+    : -100; // Default to -100% if no revenue
+  
+  // Revenue growth (would require previous year data)
+  // This is a placeholder
+  results.metrics.revenueGrowth = year === 1 ? 0 : 50; // Assume 50% growth after year 1
+  
+  // Estimated headcount from employee costs module
+  results.metrics.headcount = moduleResults.employeeCosts?.headcount || 0;
+
+  // Add formatted values for display
+  results.formattedTotalCosts = formatCurrency(results.totalCosts);
+  results.formattedTotalRevenue = formatCurrency(results.totalRevenue);
+  results.formattedNetCashflow = formatCurrency(results.netCashflow);
+  results.formattedCumulativeCashflow = formatCurrency(results.cumulativeCashflow);
+  results.formattedBurnRate = formatCurrency(results.metrics.burnRate);
+  
+  results.formattedCostBreakdown = {};
+  for (const [category, value] of Object.entries(results.costBreakdown)) {
+    results.formattedCostBreakdown[category] = formatCurrency(value);
+  }
+  
+  results.formattedRevenueBreakdown = {};
+  for (const [category, value] of Object.entries(results.revenueBreakdown)) {
+    results.formattedRevenueBreakdown[category] = formatCurrency(value);
+  }
+
+  return results;
+}
+
+// Helper functions
+function getYearLabel(year) {
+  switch(year) {
+    case 1: return '2026 (Startup)';
+    case 2: return '2027 (Year 1)';
+    case 3: return '2028 (Year 2)';
+    case 4: return '2029 (Year 3)';
+    default: return `Year ${year}`;
+  }
+}
+
+function formatCurrency(value) {
+  return `R${value.toLocaleString('en-ZA')}`;
+}

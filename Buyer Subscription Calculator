@@ -1,0 +1,197 @@
+/**
+ * Buyer Subscriptions Calculator
+ * 
+ * This calculator handles all computations related to buyer subscription revenue.
+ * It is completely independent of other calculators and modules.
+ * 
+ * @param {Object} params Input parameters for the calculation
+ * @returns {Object} Calculation results
+ */
+export function calculateBuyerSubscriptions(params) {
+  const { 
+    schemaData,  // Current schema data for this section
+    year,        // Selected year (1-4)
+    useMaximum,  // Whether to use the maximum values (true) or minimum (false)
+    adjustmentFactor = 1.0, // Optional adjustment factor for sensitivity analysis
+    customGrowthRate = null, // Optional override for the growth rate
+    churnRate = 0.05 // Optional churn rate (default 5% monthly)
+  } = params;
+
+  if (!schemaData || !schemaData.categories) {
+    throw new Error('Invalid schema data provided to Buyer Subscriptions calculator');
+  }
+
+  const yearKey = `year${year}`;
+  const valueKey = useMaximum ? 'max' : 'min';
+  
+  // Initialize results structure
+  const results = {
+    totalSubscriptionRevenue: 0,
+    yearLabel: getYearLabel(year),
+    categories: [],
+    tierBreakdown: {},
+    subscriberCounts: {},
+    totalSubscribers: 0,
+    avgRevenuePerSubscriber: 0,
+    monthlyRecurringRevenue: 0
+  };
+
+  // Define tiers and their respective monthly prices
+  const tierPrices = {
+    'Informal Tier': { min: 100, max: 200 },
+    'Formal Tier': { min: 500, max: 1000 },
+    'Wholesale Tier': { min: 2500, max: 5000 },
+    'Retail Tier': { min: 6000, max: 12000 },
+    'QSR Tier': { min: 9000, max: 18000 }
+  };
+
+  // Process each subscription tier
+  schemaData.categories.forEach(category => {
+    if (!category[yearKey]) {
+      console.warn(`Missing year data for ${category.name} in year ${year}`);
+      return;
+    }
+
+    // Apply adjustment factor to the raw value
+    const rawValue = category[yearKey][valueKey] * adjustmentFactor;
+    const value = Math.round(rawValue); // Round to nearest rand
+    
+    // Add to total
+    results.totalSubscriptionRevenue += value;
+    
+    // Extract tier information from notes
+    const tierInfo = parseTierInfo(category.notes);
+    
+    // Get monthly price for this tier
+    const monthlyPrice = tierPrices[category.name] 
+      ? tierPrices[category.name][valueKey] 
+      : (valueKey === 'min' ? 100 : 200); // Default if not found
+    
+    // Calculate subscriber count based on annual revenue and monthly price
+    // Accounting for growth during the year
+    const averageMonthlyPrice = monthlyPrice * (1 - (churnRate / 2)); // Adjustment for churn
+    const subscriberCount = Math.round(value / (averageMonthlyPrice * 12));
+    
+    // Store in results
+    results.tierBreakdown[category.name] = value;
+    results.subscriberCounts[category.name] = subscriberCount;
+    results.totalSubscribers += subscriberCount;
+    
+    // Add detailed category info to results
+    results.categories.push({
+      name: category.name,
+      annualRevenue: value,
+      monthlyPrice,
+      subscriberCount,
+      notes: category.notes
+    });
+  });
+  
+  // Calculate average revenue per subscriber and monthly recurring revenue
+  results.avgRevenuePerSubscriber = results.totalSubscribers > 0 
+    ? results.totalSubscriptionRevenue / results.totalSubscribers 
+    : 0;
+  
+  results.monthlyRecurringRevenue = results.totalSubscriptionRevenue / 12;
+  
+  // Add formatted values for display
+  results.formattedTotal = formatCurrency(results.totalSubscriptionRevenue);
+  results.formattedMonthlyRecurring = formatCurrency(results.monthlyRecurringRevenue);
+  results.formattedAvgRevenue = formatCurrency(results.avgRevenuePerSubscriber);
+  
+  results.formattedTierBreakdown = {};
+  for (const [tier, value] of Object.entries(results.tierBreakdown)) {
+    results.formattedTierBreakdown[tier] = formatCurrency(value);
+  }
+  
+  // Add year-over-year growth metrics (only applicable after year 1)
+  if (year > 1) {
+    results.yoyGrowthPercentage = calculateYoYGrowth(
+      schemaData, 
+      year, 
+      useMaximum,
+      adjustmentFactor
+    );
+    
+    results.formattedYoYGrowth = `${results.yoyGrowthPercentage.toFixed(1)}%`;
+  }
+  
+  // Add projected next year growth if we're not in the final year
+  if (year < 4) {
+    results.projectedNextYearRevenue = calculateProjectedRevenue(
+      results.totalSubscriptionRevenue,
+      customGrowthRate || 1.5 // Default 50% growth
+    );
+    
+    results.formattedProjectedRevenue = formatCurrency(results.projectedNextYearRevenue);
+  }
+  
+  return results;
+}
+
+// Helper function to parse tier information from notes
+function parseTierInfo(notes) {
+  if (!notes) return {};
+  
+  const result = {
+    monthlyPriceRange: '',
+    initialSubscribers: ''
+  };
+  
+  // Extract monthly price range
+  const priceMatch = notes.match(/R(\d+(?:,\d+)?(?:\.\d+)?)-(\d+(?:,\d+)?(?:\.\d+)?)/);
+  if (priceMatch) {
+    result.monthlyPriceRange = `R${priceMatch[1]}-${priceMatch[2]}`;
+  }
+  
+  // Extract initial subscribers
+  const subscribersMatch = notes.match(/(\d+(?:,\d+)?)-(\d+(?:,\d+)?) buyers/i);
+  if (subscribersMatch) {
+    result.initialSubscribers = `${subscribersMatch[1]}-${subscribersMatch[2]}`;
+  }
+  
+  return result;
+}
+
+// Helper function to calculate year-over-year growth
+function calculateYoYGrowth(schemaData, currentYear, useMaximum, adjustmentFactor) {
+  if (currentYear <= 1) return 0;
+  
+  const valueKey = useMaximum ? 'max' : 'min';
+  const currentYearKey = `year${currentYear}`;
+  const previousYearKey = `year${currentYear - 1}`;
+  
+  let currentTotal = 0;
+  let previousTotal = 0;
+  
+  schemaData.categories.forEach(category => {
+    if (category[currentYearKey] && category[previousYearKey]) {
+      currentTotal += category[currentYearKey][valueKey] * adjustmentFactor;
+      previousTotal += category[previousYearKey][valueKey] * adjustmentFactor;
+    }
+  });
+  
+  if (previousTotal === 0) return 100; // Infinite growth, cap at 100%
+  
+  return ((currentTotal - previousTotal) / previousTotal) * 100;
+}
+
+// Helper function to calculate projected revenue
+function calculateProjectedRevenue(currentRevenue, growthFactor) {
+  return Math.round(currentRevenue * growthFactor);
+}
+
+// Helper functions
+function getYearLabel(year) {
+  switch(year) {
+    case 1: return '2026 (Startup)';
+    case 2: return '2027 (Year 1)';
+    case 3: return '2028 (Year 2)';
+    case 4: return '2029 (Year 3)';
+    default: return `Year ${year}`;
+  }
+}
+
+function formatCurrency(value) {
+  return `R${value.toLocaleString('en-ZA')}`;
+}

@@ -1,0 +1,722 @@
+import React, { useState, useEffect, useCallback, useContext } from 'react';
+import { View, Text, StyleSheet, ScrollView, Switch, TouchableOpacity } from 'react-native';
+import { Card, Title, Paragraph, Divider } from 'react-native-paper';
+import { LineChart, PieChart } from 'react-native-chart-kit';
+import Slider from '@react-native-community/slider';
+
+// Import contexts and calculator
+import { SchemaContext } from '../../App';
+import { DashboardContext } from '../../App';
+import { calculateTransactionFees } from '../../utils/calculators/transactionFees';
+
+/**
+ * Transaction Fees Screen
+ * 
+ * This screen handles the visualization and calculation of transaction fee revenue.
+ * It uses its own dedicated calculator and maintains independent state.
+ * All three transaction fee types (Traditional Market, B2B, Financial Services)
+ * are included with adjustable fee ranges from 0.05% to 3% in 0.05% increments.
+ */
+const TransactionFeesScreen = () => {
+  // Get schema data from context
+  const { schemaData } = useContext(SchemaContext);
+  
+  // Get dashboard integration functions
+  const { onModuleResultsCalculated } = useContext(DashboardContext);
+  
+  // Module ID for this screen
+  const MODULE_ID = 'transactionFees';
+  
+  // Local state
+  const [year, setYear] = useState(1); // Default to first year (2026)
+  const [useMaximum, setUseMaximum] = useState(false); // Default to minimum values
+  const [adjustmentFactor, setAdjustmentFactor] = useState(1.0); // Default to no adjustment
+  const [locked, setLocked] = useState(false); // Lock status for Dashboard integration
+  const [results, setResults] = useState(null); // Calculation results
+  
+  // Transaction volume multiplier
+  const [transactionVolumeMultiplier, setTransactionVolumeMultiplier] = useState(1.0);
+  
+  // Custom fee rates for each channel (in percentage points)
+  const [feeRates, setFeeRates] = useState({
+    'Traditional Market': { min: 0.5, max: 1.0 }, // Default: 0.5-1%
+    'B2B (Beyond)': { min: 0.3, max: 0.6 }, // Default: 0.3-0.6%
+    'Financial Services': { min: 0.2, max: 0.4 } // Default: 0.2-0.4%
+  });
+  
+  // Get the relevant schema section for this module
+  const moduleSchema = schemaData?.transactionFees || null;
+
+  // Function to run calculations and update results
+  const calculateResults = useCallback(() => {
+    if (!moduleSchema) return;
+    
+    // Convert fee rates from percentage points to decimal
+    const decimalFeeRates = {};
+    Object.keys(feeRates).forEach(channel => {
+      decimalFeeRates[channel] = {
+        min: feeRates[channel].min / 100,
+        max: feeRates[channel].max / 100
+      };
+    });
+    
+    // Prepare parameters for the calculator
+    const params = {
+      schemaData: moduleSchema,
+      year,
+      useMaximum,
+      adjustmentFactor,
+      transactionVolumeMultiplier,
+      customFeeRate: decimalFeeRates
+    };
+    
+    // Call the module's specific calculator
+    const calculatedResults = calculateTransactionFees(params);
+    
+    // Update local state with results
+    setResults(calculatedResults);
+    
+    // Send results to Dashboard if module is unlocked
+    if (!locked && onModuleResultsCalculated) {
+      onModuleResultsCalculated(MODULE_ID, calculatedResults);
+    }
+  }, [
+    moduleSchema, 
+    year, 
+    useMaximum, 
+    adjustmentFactor, 
+    transactionVolumeMultiplier,
+    feeRates,
+    locked, 
+    onModuleResultsCalculated
+  ]);
+
+  // Calculate results when parameters change
+  useEffect(() => {
+    calculateResults();
+  }, [calculateResults]);
+
+  // Toggle lock status and notify Dashboard
+  const toggleLock = () => {
+    const newLockStatus = !locked;
+    setLocked(newLockStatus);
+    
+    // If unlocking, send current results to Dashboard
+    if (!newLockStatus && results && onModuleResultsCalculated) {
+      onModuleResultsCalculated(MODULE_ID, results);
+    }
+    
+    // If locking, notify Dashboard to remove this module's results
+    if (newLockStatus && onModuleResultsCalculated) {
+      onModuleResultsCalculated(MODULE_ID, null);
+    }
+  };
+
+  // Update fee rate for a specific channel
+  const updateFeeRate = (channel, bound, value) => {
+    setFeeRates(prev => ({
+      ...prev,
+      [channel]: {
+        ...prev[channel],
+        [bound]: value
+      }
+    }));
+  };
+
+  // Format currency for display
+  const formatCurrency = (value) => {
+    return `R${value.toLocaleString('en-ZA')}`;
+  };
+
+  // Format percentage for display
+  const formatPercentage = (value) => {
+    return `${value.toFixed(2)}%`;
+  };
+
+  // Get year label
+  const getYearLabel = (yearValue) => {
+    switch(yearValue) {
+      case 1: return '2026 (Startup)';
+      case 2: return '2027 (Year 1)';
+      case 3: return '2028 (Year 2)';
+      case 4: return '2029 (Year 3)';
+      default: return `Year ${yearValue}`;
+    }
+  };
+
+  // Prepare chart data if results are available
+  const prepareChartData = () => {
+    if (!results || !results.categories) return null;
+    
+    return {
+      labels: results.categories.map(category => category.name.split(' ')[0]),
+      datasets: [
+        {
+          data: results.categories.map(category => category.feeRevenue),
+          color: (opacity = 1) => `rgba(0, 128, 255, ${opacity})`,
+          strokeWidth: 2
+        }
+      ],
+      legend: ['Fee Revenue']
+    };
+  };
+  
+  // Prepare pie chart data
+  const preparePieData = () => {
+    if (!results || !results.channelBreakdown) return [];
+    
+    return Object.keys(results.channelBreakdown).map((channel, index) => ({
+      name: channel.split(' ')[0], // Just use first word for brevity
+      value: results.channelBreakdown[channel],
+      color: getColorByIndex(index),
+      legendFontColor: "#7F7F7F",
+      legendFontSize: 12
+    }));
+  };
+  
+  // Prepare transaction volume chart data
+  const prepareVolumeData = () => {
+    if (!results || !results.estimatedTransactionVolumes) return null;
+    
+    return {
+      labels: Object.keys(results.estimatedTransactionVolumes).map(channel => channel.split(' ')[0]),
+      datasets: [
+        {
+          data: Object.values(results.estimatedTransactionVolumes),
+          color: (opacity = 1) => `rgba(128, 0, 128, ${opacity})`,
+          strokeWidth: 2
+        }
+      ],
+      legend: ['Transaction Volume']
+    };
+  };
+  
+  // Helper function to get colors for chart
+  const getColorByIndex = (index) => {
+    const colors = [
+      '#4285F4', '#34A853', '#FBBC05', '#EA4335', '#8F00FF'
+    ];
+    
+    return colors[index % colors.length];
+  };
+
+  const chartData = prepareChartData();
+  const pieData = preparePieData();
+  const volumeData = prepareVolumeData();
+
+  return (
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Transaction Fees</Text>
+        <View style={styles.lockContainer}>
+          <Text style={styles.lockLabel}>
+            {locked ? 'Locked (Excluded from Dashboard)' : 'Unlocked (Included in Dashboard)'}
+          </Text>
+          <Switch
+            value={!locked}
+            onValueChange={toggleLock}
+            trackColor={{ false: '#767577', true: '#81b0ff' }}
+            thumbColor={!locked ? '#f5dd4b' : '#f4f3f4'}
+          />
+        </View>
+      </View>
+      
+      {/* Year Selection */}
+      <Card style={styles.card}>
+        <Card.Content>
+          <Title>Projection Year</Title>
+          <View style={styles.yearSelector}>
+            {[1, 2, 3, 4].map((yearValue) => (
+              <TouchableOpacity
+                key={`year-${yearValue}`}
+                style={[
+                  styles.yearButton,
+                  year === yearValue && styles.selectedYearButton
+                ]}
+                onPress={() => setYear(yearValue)}
+              >
+                <Text 
+                  style={[
+                    styles.yearButtonText,
+                    year === yearValue && styles.selectedYearButtonText
+                  ]}
+                >
+                  {getYearLabel(yearValue)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Card.Content>
+      </Card>
+      
+      {/* Scenario Settings */}
+      <Card style={styles.card}>
+        <Card.Content>
+          <Title>Scenario Settings</Title>
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Use Maximum Values:</Text>
+            <Switch
+              value={useMaximum}
+              onValueChange={setUseMaximum}
+              trackColor={{ false: '#767577', true: '#81b0ff' }}
+              thumbColor={useMaximum ? '#f5dd4b' : '#f4f3f4'}
+            />
+          </View>
+          
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>
+              Revenue Adjustment Factor: {adjustmentFactor.toFixed(2)}x
+            </Text>
+          </View>
+          <Slider
+            style={styles.slider}
+            minimumValue={0.5}
+            maximumValue={1.5}
+            step={0.05}
+            value={adjustmentFactor}
+            onValueChange={setAdjustmentFactor}
+            minimumTrackTintColor="#4285F4"
+            maximumTrackTintColor="#000000"
+            thumbTintColor="#4285F4"
+          />
+          
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>
+              Transaction Volume Multiplier: {transactionVolumeMultiplier.toFixed(2)}x
+            </Text>
+          </View>
+          <Slider
+            style={styles.slider}
+            minimumValue={0.5}
+            maximumValue={1.5}
+            step={0.05}
+            value={transactionVolumeMultiplier}
+            onValueChange={setTransactionVolumeMultiplier}
+            minimumTrackTintColor="#4285F4"
+            maximumTrackTintColor="#000000"
+            thumbTintColor="#4285F4"
+          />
+          
+          <Divider style={styles.divider} />
+          
+          {/* Fee Rate Settings */}
+          <Title>Fee Rate Settings</Title>
+          <Text style={styles.subTitle}>Adjust fee rates from 0.05% to 3% for each channel</Text>
+          
+          {Object.keys(feeRates).map((channel) => (
+            <View key={channel} style={styles.feeRateContainer}>
+              <Text style={styles.channelTitle}>{channel}</Text>
+              
+              <View style={styles.feeRangeRow}>
+                <Text style={styles.feeRateLabel}>
+                  Minimum Fee Rate: {formatPercentage(feeRates[channel].min)}
+                </Text>
+                <Slider
+                  style={styles.slider}
+                  minimumValue={0.05}
+                  maximumValue={3.0}
+                  step={0.05}
+                  value={feeRates[channel].min}
+                  onValueChange={(value) => updateFeeRate(channel, 'min', value)}
+                  minimumTrackTintColor="#4285F4"
+                  maximumTrackTintColor="#000000"
+                  thumbTintColor="#4285F4"
+                />
+              </View>
+              
+              <View style={styles.feeRangeRow}>
+                <Text style={styles.feeRateLabel}>
+                  Maximum Fee Rate: {formatPercentage(feeRates[channel].max)}
+                </Text>
+                <Slider
+                  style={styles.slider}
+                  minimumValue={0.05}
+                  maximumValue={3.0}
+                  step={0.05}
+                  value={feeRates[channel].max}
+                  onValueChange={(value) => updateFeeRate(channel, 'max', value)}
+                  minimumTrackTintColor="#4285F4"
+                  maximumTrackTintColor="#000000"
+                  thumbTintColor="#4285F4"
+                />
+              </View>
+              
+              <Divider style={styles.divider} />
+            </View>
+          ))}
+        </Card.Content>
+      </Card>
+      
+      {/* Results Section */}
+      {results && (
+        <Card style={styles.card}>
+          <Card.Content>
+            <Title>Calculation Results</Title>
+            <View style={styles.resultsContainer}>
+              <View style={styles.resultRow}>
+                <Text style={styles.resultLabel}>Total Transaction Fee Revenue:</Text>
+                <Text style={styles.resultValue}>{results.formattedTotal}</Text>
+              </View>
+              
+              <View style={styles.resultRow}>
+                <Text style={styles.resultLabel}>Estimated Transaction Volume:</Text>
+                <Text style={styles.resultValue}>{results.formattedTransactionVolume}</Text>
+              </View>
+              
+              <View style={styles.resultRow}>
+                <Text style={styles.resultLabel}>Weighted Average Fee Rate:</Text>
+                <Text style={styles.resultValue}>{results.formattedWeightedAvgFeeRate}</Text>
+              </View>
+              
+              <View style={styles.resultRow}>
+                <Text style={styles.resultLabel}>Revenue per R1M Processed:</Text>
+                <Text style={styles.resultValue}>
+                  {formatCurrency(results.revenuePerMillionProcessed)}
+                </Text>
+              </View>
+              
+              {/* Show growth info if available and not in first year */}
+              {results.yoyGrowthPercentage && year > 1 && (
+                <View style={styles.metricRow}>
+                  <Text style={styles.metricLabel}>Year-over-Year Growth:</Text>
+                  <Text style={styles.metricValue}>{results.formattedYoYGrowth}</Text>
+                </View>
+              )}
+            </View>
+          </Card.Content>
+        </Card>
+      )}
+      
+      {/* Visualization Sections */}
+      {chartData && (
+        <Card style={styles.card}>
+          <Card.Content>
+            <Title>Fee Revenue by Channel</Title>
+            <LineChart
+              data={chartData}
+              width={320}
+              height={220}
+              chartConfig={{
+                backgroundColor: '#1e2923',
+                backgroundGradientFrom: '#1e2923',
+                backgroundGradientTo: '#08130D',
+                decimalPlaces: 0,
+                color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                style: {
+                  borderRadius: 16,
+                },
+                propsForDots: {
+                  r: '6',
+                  strokeWidth: '2',
+                  stroke: '#ffa726',
+                },
+              }}
+              bezier
+              style={styles.chart}
+            />
+          </Card.Content>
+        </Card>
+      )}
+      
+      {/* Pie Chart */}
+      {pieData && pieData.length > 0 && (
+        <Card style={styles.card}>
+          <Card.Content>
+            <Title>Revenue Breakdown</Title>
+            <PieChart
+              data={pieData}
+              width={320}
+              height={220}
+              chartConfig={{
+                color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+              }}
+              accessor="value"
+              backgroundColor="transparent"
+              paddingLeft="15"
+              style={styles.chart}
+            />
+          </Card.Content>
+        </Card>
+      )}
+      
+      {/* Transaction Volume Chart */}
+      {volumeData && (
+        <Card style={styles.card}>
+          <Card.Content>
+            <Title>Transaction Volume by Channel</Title>
+            <LineChart
+              data={volumeData}
+              width={320}
+              height={220}
+              chartConfig={{
+                backgroundColor: '#512DA8',
+                backgroundGradientFrom: '#673AB7',
+                backgroundGradientTo: '#4527A0',
+                decimalPlaces: 0,
+                color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                style: {
+                  borderRadius: 16,
+                },
+                propsForDots: {
+                  r: '6',
+                  strokeWidth: '2',
+                  stroke: '#4527A0',
+                },
+              }}
+              bezier
+              style={styles.chart}
+            />
+          </Card.Content>
+        </Card>
+      )}
+      
+      {/* Category Detail Section */}
+      <Card style={styles.card}>
+        <Card.Content>
+          <Title>Fee Channels</Title>
+          {moduleSchema?.categories?.map((category, index) => (
+            <View key={`detail-${index}`} style={styles.detailRow}>
+              <Text style={styles.detailName}>{category.name}</Text>
+              <Text style={styles.detailNotes}>{category.notes}</Text>
+              
+              {results && results.categories && results.categories[index] && (
+                <View style={styles.detailMetrics}>
+                  <View style={styles.metricItem}>
+                    <Text style={styles.metricKey}>Fee Rate:</Text>
+                    <Text style={styles.metricValue}>
+                      {results.categories[index].formattedFeeRate}
+                    </Text>
+                  </View>
+                  <View style={styles.metricItem}>
+                    <Text style={styles.metricKey}>Transaction Volume:</Text>
+                    <Text style={styles.metricValue}>
+                      {formatCurrency(results.categories[index].transactionVolume)}
+                    </Text>
+                  </View>
+                </View>
+              )}
+              
+              <View style={styles.yearValuesContainer}>
+                {[1, 2, 3, 4].map((yearNum) => (
+                  <View key={`year-value-${yearNum}`} style={styles.yearValue}>
+                    <Text style={styles.yearValueLabel}>Year {yearNum}:</Text>
+                    <Text style={styles.yearValueMin}>
+                      Min: {formatCurrency(category[`year${yearNum}`]?.min || 0)}
+                    </Text>
+                    <Text style={styles.yearValueMax}>
+                      Max: {formatCurrency(category[`year${yearNum}`]?.max || 0)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ))}
+        </Card.Content>
+      </Card>
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#f5f5f5',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  lockContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  lockLabel: {
+    marginRight: 8,
+    fontSize: 12,
+    color: '#666',
+  },
+  card: {
+    marginBottom: 16,
+    elevation: 2,
+  },
+  divider: {
+    marginVertical: 16,
+  },
+  subTitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+  },
+  yearSelector: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  yearButton: {
+    flex: 1,
+    padding: 8,
+    margin: 4,
+    backgroundColor: '#eee',
+    borderRadius: 4,
+    alignItems: 'center',
+  },
+  selectedYearButton: {
+    backgroundColor: '#4285F4',
+  },
+  yearButtonText: {
+    fontSize: 12,
+    color: '#333',
+  },
+  selectedYearButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  settingLabel: {
+    fontSize: 16,
+    color: '#333',
+  },
+  slider: {
+    width: '100%',
+    height: 40,
+    marginBottom: 8,
+  },
+  feeRateContainer: {
+    marginTop: 8,
+  },
+  channelTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#4285F4',
+    marginBottom: 8,
+  },
+  feeRangeRow: {
+    marginBottom: 8,
+  },
+  feeRateLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  resultsContainer: {
+    marginVertical: 8,
+  },
+  resultRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#f0f8ff',
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  resultLabel: {
+    fontSize: 16,
+    color: '#333',
+  },
+  resultValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#4285F4',
+  },
+  metricRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+    padding: 8,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 4,
+  },
+  metricLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  metricValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  chart: {
+    marginVertical: 8,
+    borderRadius: 16,
+  },
+  detailRow: {
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4285F4',
+  },
+  detailName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+    color: '#333',
+  },
+  detailNotes: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    color: '#666',
+    marginBottom: 8,
+  },
+  detailMetrics: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 8,
+    backgroundColor: '#f0f8ff',
+    padding: 8,
+    borderRadius: 4,
+  },
+  metricItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  metricKey: {
+    fontSize: 14,
+    color: '#666',
+    marginRight: 4,
+  },
+  metricValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#4285F4',
+  },
+  yearValuesContainer: {
+    marginTop: 8,
+  },
+  yearValue: {
+    marginBottom: 8,
+  },
+  yearValueLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  yearValueMin: {
+    fontSize: 14,
+    color: '#666',
+  },
+  yearValueMax: {
+    fontSize: 14,
+    color: '#666',
+  },
+});
+
+export default TransactionFeesScreen;

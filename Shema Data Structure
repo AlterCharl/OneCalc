@@ -1,0 +1,405 @@
+/**
+ * OneWORLD Scenario Planner - Default Schema Data
+ * 
+ * This file contains the default schema data structure for the
+ * OneWORLD Scenario Planner application. It defines all cost and
+ * revenue categories with their default values across the 4-year period.
+ * 
+ * Year 1: 2026 (Startup)
+ * Year 2: 2027 (Y1)
+ * Year 3: 2028 (Y2)
+ * Year 4: 2029 (Y3)
+ */
+
+// Utility functions for schema operations
+export const calculateTotals = (schema) => {
+  const totals = {
+    costs: {
+      year1: { min: 0, max: 0 },
+      year2: { min: 0, max: 0 },
+      year3: { min: 0, max: 0 },
+      year4: { min: 0, max: 0 },
+    },
+    revenue: {
+      year1: { min: 0, max: 0 },
+      year2: { min: 0, max: 0 },
+      year3: { min: 0, max: 0 },
+      year4: { min: 0, max: 0 },
+    }
+  };
+
+  Object.keys(schema).forEach(sectionKey => {
+    const section = schema[sectionKey];
+    const targetTotal = section.type === 'cost' ? totals.costs : totals.revenue;
+
+    section.categories.forEach(category => {
+      for (let i = 1; i <= 4; i++) {
+        const yearKey = `year${i}`;
+        targetTotal[yearKey].min += category[yearKey].min;
+        targetTotal[yearKey].max += category[yearKey].max;
+      }
+    });
+  });
+
+  return totals;
+};
+
+export const formatCurrency = (value) => {
+  return `R${value.toLocaleString('en-ZA')}`;
+};
+
+export const parseRand = (randString) => {
+  return parseFloat(randString.replace(/[^0-9.]/g, ''));
+};
+
+export const calculatorIds = {
+  employeeCosts: 'calculateEmployeeCosts',
+  techDevelopment: 'calculateTechCosts',
+  operationalCosts: 'calculateOperationalCosts',
+  transactionFees: 'calculateTransactionFees',
+  farmerSubscriptions: 'calculateFarmerSubscriptions',
+  buyerSubscriptions: 'calculateBuyerSubscriptions',
+  logisticsRevenue: 'calculateLogisticsRevenue',
+  ancillaryIncome: 'calculateAncillaryIncome'
+};
+
+export const defaultSchemaData = {
+  // COSTS
+  employeeCosts: {
+    title: "Employee Costs",
+    type: "cost",
+    categories: [
+      {
+        name: "Product Manager",
+        year1: { min: 720000, max: 900000 },
+        year2: { min: 756000, max: 945000 },
+        year3: { min: 794000, max: 992000 },
+        year4: { min: 834000, max: 1042000 },
+        notes: "Senior-level PM with marketplace experience"
+      },
+  logisticsRevenue: {
+    title: "Logistics Revenue",
+    type: "revenue",
+    categories: [
+      {
+        name: "LineBooker Commission",
+        year1: { min: 0, max: 0 },
+        year2: { min: 360000, max: 720000 },
+        year3: { min: 900000, max: 1800000 },
+        year4: { min: 1800000, max: 3600000 },
+        notes: "5-10% of logistics facilitated"
+      }
+    ]
+  },
+  ancillaryIncome: {
+    title: "Ancillary Income",
+    type: "revenue",
+    categories: [
+      {
+        name: "Analytics Data",
+        year1: { min: 0, max: 0 },
+        year2: { min: 240000, max: 480000 },
+        year3: { min: 600000, max: 1200000 },
+        year4: { min: 1200000, max: 2400000 },
+        notes: "Data insights for third parties"
+      },
+      {
+        name: "Insurance Referrals",
+        year1: { min: 0, max: 0 },
+        year2: { min: 180000, max: 360000 },
+        year3: { min: 450000, max: 900000 },
+        year4: { min: 900000, max: 1800000 },
+        notes: "Commission on referred insurance"
+      },
+      {
+        name: "Financial Services",
+        year1: { min: 0, max: 0 },
+        year2: { min: 360000, max: 720000 },
+        year3: { min: 900000, max: 1800000 },
+        year4: { min: 1800000, max: 3600000 },
+        notes: "Loans, credit facilitation"
+      }
+    ]
+  }
+};
+  // REVENUES
+  transactionFees: {
+    title: "Transaction Fees",
+    type: "revenue",
+    categories: [
+      {
+        name: "Traditional Market",
+        year1: { min: 0, max: 0 },
+        year2: { min: 1800000, max: 3600000 },
+        year3: { min: 3600000, max: 7200000 },
+        year4: { min: 7200000, max: 14400000 },
+        notes: "0.5-1% of transaction volume"
+      },
+      {
+        name: "B2B (Beyond)",
+        year1: { min: 0, max: 0 },
+        year2: { min: 900000, max: 1800000 },
+        year3: { min: 2700000, max: 5400000 },
+        year4: { min: 5400000, max: 10800000 },
+        notes: "0.3-0.6% of transaction volume"
+      },
+      {
+        name: "Financial Services",
+        year1: { min: 0, max: 0 },
+        year2: { min: 600000, max: 1200000 },
+        year3: { min: 1800000, max: 3600000 },
+        year4: { min: 3600000, max: 7200000 },
+        notes: "0.2-0.4% of transaction volume"
+      }
+    ]
+  },
+  farmerSubscriptions: {
+    title: "Farmer Subscriptions",
+    type: "revenue",
+    categories: [
+      {
+        name: "Small Tier",
+        year1: { min: 0, max: 0 },
+        year2: { min: 360000, max: 720000 },
+        year3: { min: 720000, max: 1440000 },
+        year4: { min: 1440000, max: 2880000 },
+        notes: "R250-500/month, 120-240 farmers Y1, growing"
+      },
+      {
+        name: "Medium Tier",
+        year1: { min: 0, max: 0 },
+        year2: { min: 720000, max: 1440000 },
+        year3: { min: 1440000, max: 2880000 },
+        year4: { min: 2880000, max: 5760000 },
+        notes: "R1,000-2,000/month, 60-120 farmers Y1, growing"
+      },
+      {
+        name: "Large Tier",
+        year1: { min: 0, max: 0 },
+        year2: { min: 1080000, max: 2160000 },
+        year3: { min: 2160000, max: 4320000 },
+        year4: { min: 4320000, max: 8640000 },
+        notes: "R3,000-6,000/month, 30-60 farmers Y1, growing"
+      },
+      {
+        name: "Enterprise Tier",
+        year1: { min: 0, max: 0 },
+        year2: { min: 720000, max: 1440000 },
+        year3: { min: 1440000, max: 2880000 },
+        year4: { min: 2880000, max: 5760000 },
+        notes: "R12,000-24,000/month, 5-10 farms Y1, growing"
+      }
+    ]
+  },
+  buyerSubscriptions: {
+    title: "Buyer Subscriptions",
+    type: "revenue",
+    categories: [
+      {
+        name: "Informal Tier",
+        year1: { min: 0, max: 0 },
+        year2: { min: 180000, max: 360000 },
+        year3: { min: 360000, max: 720000 },
+        year4: { min: 720000, max: 1440000 },
+        notes: "R100-200/month, 150-300 buyers Y1, growing"
+      },
+      {
+        name: "Formal Tier",
+        year1: { min: 0, max: 0 },
+        year2: { min: 540000, max: 1080000 },
+        year3: { min: 1080000, max: 2160000 },
+        year4: { min: 2160000, max: 4320000 },
+        notes: "R500-1,000/month, 90-180 buyers Y1, growing"
+      },
+      {
+        name: "Wholesale Tier",
+        year1: { min: 0, max: 0 },
+        year2: { min: 900000, max: 1800000 },
+        year3: { min: 1800000, max: 3600000 },
+        year4: { min: 3600000, max: 7200000 },
+        notes: "R2,500-5,000/month, 30-60 buyers Y1, growing"
+      },
+      {
+        name: "Retail Tier",
+        year1: { min: 0, max: 0 },
+        year2: { min: 720000, max: 1440000 },
+        year3: { min: 1440000, max: 2880000 },
+        year4: { min: 2880000, max: 5760000 },
+        notes: "R6,000-12,000/month, 10-20 retailers Y1, growing"
+      },
+      {
+        name: "QSR Tier",
+        year1: { min: 0, max: 0 },
+        year2: { min: 540000, max: 1080000 },
+        year3: { min: 1080000, max: 2160000 },
+        year4: { min: 2160000, max: 4320000 },
+        notes: "R9,000-18,000/month, 5-10 QSRs Y1, growing"
+      }
+    ]
+  },
+      {
+        name: "Frontend Developers",
+        year1: { min: 1200000, max: 1800000 },
+        year2: { min: 1680000, max: 2520000 },
+        year3: { min: 1920000, max: 2880000 },
+        year4: { min: 2100000, max: 3150000 },
+        notes: "2-3 developers Y1, 3-4 in Y2/Y3"
+      },
+      {
+        name: "Backend Developers",
+        year1: { min: 1320000, max: 1980000 },
+        year2: { min: 1848000, max: 2772000 },
+        year3: { min: 2112000, max: 3168000 },
+        year4: { min: 2310000, max: 3465000 },
+        notes: "2-3 developers Y1, 3-4 in Y2/Y3"
+      },
+      {
+        name: "UX/UI Designer",
+        year1: { min: 600000, max: 900000 },
+        year2: { min: 630000, max: 945000 },
+        year3: { min: 662000, max: 992000 },
+        year4: { min: 695000, max: 1042000 },
+        notes: "1-2 designers"
+      },
+      {
+        name: "QA Engineer",
+        year1: { min: 480000, max: 720000 },
+        year2: { min: 744000, max: 1116000 },
+        year3: { min: 864000, max: 1296000 },
+        year4: { min: 945000, max: 1418000 },
+        notes: "1 engineer Y1, 2 in Y2/Y3"
+      },
+      {
+        name: "DevOps Engineer",
+        year1: { min: 720000, max: 960000 },
+        year2: { min: 756000, max: 1008000 },
+        year3: { min: 794000, max: 1058000 },
+        year4: { min: 834000, max: 1111000 },
+        notes: "1 senior DevOps"
+      },
+      {
+        name: "Business Analyst",
+        year1: { min: 600000, max: 840000 },
+        year2: { min: 630000, max: 882000 },
+        year3: { min: 662000, max: 926000 },
+        year4: { min: 695000, max: 972000 },
+        notes: "1 analyst"
+      }
+    ]
+  },
+  techDevelopment: {
+    title: "Tech Development",
+    type: "cost",
+    categories: [
+      {
+        name: "Cloud Infrastructure",
+        year1: { min: 240000, max: 480000 },
+        year2: { min: 360000, max: 720000 },
+        year3: { min: 480000, max: 960000 },
+        year4: { min: 600000, max: 1200000 },
+        notes: "AWS/Azure/GCP services"
+      },
+      {
+        name: "Firebase Services",
+        year1: { min: 120000, max: 240000 },
+        year2: { min: 180000, max: 360000 },
+        year3: { min: 240000, max: 480000 },
+        year4: { min: 300000, max: 600000 },
+        notes: "Auth, Firestore, Functions"
+      },
+      {
+        name: "Vertex AI Implementation",
+        year1: { min: 180000, max: 360000 },
+        year2: { min: 240000, max: 480000 },
+        year3: { min: 300000, max: 600000 },
+        year4: { min: 360000, max: 720000 },
+        notes: "ML model development and API usage"
+      },
+      {
+        name: "Third-Party APIs/Services",
+        year1: { min: 120000, max: 240000 },
+        year2: { min: 180000, max: 360000 },
+        year3: { min: 240000, max: 480000 },
+        year4: { min: 300000, max: 600000 },
+        notes: "Payment processing, mapping, etc."
+      },
+      {
+        name: "DevOps Tooling",
+        year1: { min: 60000, max: 120000 },
+        year2: { min: 72000, max: 144000 },
+        year3: { min: 84000, max: 168000 },
+        year4: { min: 96000, max: 192000 },
+        notes: "CI/CD, monitoring, logging"
+      },
+      {
+        name: "Security Implementation",
+        year1: { min: 120000, max: 240000 },
+        year2: { min: 144000, max: 288000 },
+        year3: { min: 168000, max: 336000 },
+        year4: { min: 192000, max: 384000 },
+        notes: "Penetration testing, security audits"
+      }
+    ]
+  },
+  operationalCosts: {
+    title: "Operational Costs",
+    type: "cost",
+    categories: [
+      {
+        name: "Office Space",
+        year1: { min: 240000, max: 480000 },
+        year2: { min: 252000, max: 504000 },
+        year3: { min: 265000, max: 529000 },
+        year4: { min: 278000, max: 555000 },
+        notes: "Based on team size growth"
+      },
+      {
+        name: "Equipment",
+        year1: { min: 180000, max: 300000 },
+        year2: { min: 120000, max: 240000 },
+        year3: { min: 144000, max: 288000 },
+        year4: { min: 168000, max: 336000 },
+        notes: "Higher in Y1 for initial setup"
+      },
+      {
+        name: "Software Licenses",
+        year1: { min: 120000, max: 240000 },
+        year2: { min: 144000, max: 288000 },
+        year3: { min: 168000, max: 336000 },
+        year4: { min: 192000, max: 384000 },
+        notes: "Design tools, development tools, etc."
+      },
+      {
+        name: "Legal & Compliance",
+        year1: { min: 180000, max: 360000 },
+        year2: { min: 120000, max: 240000 },
+        year3: { min: 144000, max: 288000 },
+        year4: { min: 168000, max: 336000 },
+        notes: "Higher in Y1 for initial setup"
+      },
+      {
+        name: "Marketing & Sales",
+        year1: { min: 360000, max: 720000 },
+        year2: { min: 540000, max: 1080000 },
+        year3: { min: 720000, max: 1440000 },
+        year4: { min: 900000, max: 1800000 },
+        notes: "Increases as platform scales"
+      },
+      {
+        name: "Customer Support",
+        year1: { min: 240000, max: 480000 },
+        year2: { min: 360000, max: 720000 },
+        year3: { min: 480000, max: 960000 },
+        year4: { min: 600000, max: 1200000 },
+        notes: "Support team growth with user base"
+      },
+      {
+        name: "Travel & Entertainment",
+        year1: { min: 120000, max: 240000 },
+        year2: { min: 144000, max: 288000 },
+        year3: { min: 168000, max: 336000 },
+        year4: { min: 192000, max: 384000 },
+        notes: "Client meetings, industry events"
+      }
+    ]
+  },
