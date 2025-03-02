@@ -1,0 +1,141 @@
+.schema-tables {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+/* Styles for the Save All button and confirmation */
+.schema-actions {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+  padding: 10px;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.save-all-button {
+  padding: 10px 20px;
+  background-color: #4299e1;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.save-all-button:hover {
+  background-color: #3182ce;
+}
+
+.save-all-button:active {
+  background-color: #2b6cb0;
+}
+
+.save-confirmation {
+  margin-left: 15px;
+  padding: 8px 15px;
+  background-color: #c6f6d5;
+  color: #2f855a;
+  border-radius: 5px;
+  font-size: 14px;
+  animation: fadeIn 0.3s, fadeOut 0.5s 2.5s;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.schema-table {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+}
+
+.costs-table {
+  border-left: 4px solid #f56565;
+}
+
+.revenue-table {
+  border-left: 4px solid #48bb78;
+}
+
+.table-header {
+  padding: 15px;
+}
+
+.costs-table .table-header {
+  background-color: #fff5f5;
+}
+
+.revenue-table .table-header {
+  background-color: #f0fff4;
+}
+
+.table-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  display: flex;
+  align-items: center;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+.schema-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.schema-table th {
+  padding: 10px 15px;
+  text-align: left;
+  font-weight: 500;
+  color: #4a5568;
+  background-color: #f7fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.schema-table th:not(:first-child) {
+  text-align: center;
+  min-width: 90px;
+}
+
+.schema-table tbody tr {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.schema-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.schema-table tbody tr:hover {
+  background-color: #f7fafc;
+}
+
+.schema-table td {
+  padding: 12px 15px;
+}
+
+.schema-table td:not(:first-child) {
+  text-align: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .table-container {
+    overflow-x: scroll;
+  }
+} 

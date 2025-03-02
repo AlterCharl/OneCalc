@@ -1,0 +1,356 @@
+import React, { createContext, useContext, useState, useCallback } from 'react';
+
+// Create the context
+const DashboardContext = createContext();
+
+// Custom hook for using dashboard context
+export const useDashboard = () => {
+  const context = useContext(DashboardContext);
+  if (!context) {
+    throw new Error('useDashboard must be used within a DashboardProvider');
+  }
+  return context;
+};
+
+/**
+ * Dashboard Provider Component
+ * 
+ * Simplified implementation with minimal dependencies
+ */
+export const DashboardProvider = ({ children }) => {
+  // Mock current user for demo purposes
+  const mockCurrentUser = {
+    id: 'user123',
+    name: 'Demo User',
+    email: 'demo@example.com'
+  };
+
+  // Define default values for compiled results to avoid undefined errors
+  const defaultCompiledResults = {
+    costsByYear: {
+      '2026': 0,
+      '2027': 0,
+      '2028': 0,
+      '2029': 0
+    },
+    revenuesByYear: {
+      '2026': 0,
+      '2027': 0,
+      '2028': 0,
+      '2029': 0
+    },
+    netProfitByYear: {
+      '2026': 0,
+      '2027': 0,
+      '2028': 0,
+      '2029': 0
+    },
+    summaryMetrics: {
+      totalThreeYearRevenue: 0,
+      totalThreeYearCosts: 0,
+      totalThreeYearProfit: 0,
+      averageYearlyRevenue: 0,
+      averageYearlyCosts: 0,
+      revenueGrowthRate: 0,
+      costGrowthRate: 0,
+      breakEvenYear: 'Not calculated'
+    }
+  };
+
+  // State for registered modules (organized by type)
+  const [registeredModules, setRegisteredModules] = useState({
+    costs: {},
+    revenue: {},
+    calculator: {}
+  });
+  
+  // State for compiled results
+  const [compiledResults, setCompiledResults] = useState(defaultCompiledResults);
+  
+  // Register a module with the dashboard
+  const registerModule = useCallback((id, getResults, type = 'calculator') => {
+    console.log(`Registering module: ${id} of type ${type}`);
+    
+    // Validate parameters
+    if (!id || typeof getResults !== 'function') {
+      console.error('Invalid module registration: id and getResults are required');
+      return;
+    }
+    
+    // Determine module type category if not specified
+    if (!type) {
+      if (id.toLowerCase().includes('cost')) {
+        type = 'costs';
+      } else if (id.toLowerCase().includes('revenue') || id.toLowerCase().includes('fees')) {
+        type = 'revenue';
+      } else {
+        type = 'calculator';
+      }
+    }
+    
+    setRegisteredModules(prev => {
+      // Ensure category exists
+      const updated = { ...prev };
+      if (!updated[type]) {
+        updated[type] = {};
+      }
+      
+      // Add the module to its category
+      updated[type][id] = getResults;
+      return updated;
+    });
+    
+    // Trigger a compilation after registration
+    setTimeout(() => {
+      console.log(`Module registered: ${id}. Compiling results...`);
+      compileResults();
+    }, 0);
+    
+    // Return unregister function
+    return () => {
+      console.log(`Unregistering module: ${id}`);
+      setRegisteredModules(prev => {
+        const updated = { ...prev };
+        if (updated[type] && updated[type][id]) {
+          delete updated[type][id];
+        }
+        return updated;
+      });
+      
+      // Recompile after unregistering
+      setTimeout(compileResults, 0);
+    };
+  }, []);
+  
+  // Unregister a module
+  const unregisterModule = useCallback((id, type) => {
+    console.log(`Unregistering module: ${id}`);
+    setRegisteredModules(prev => {
+      const updated = { ...prev };
+      
+      // Try to find and remove the module from its category
+      if (type && updated[type] && updated[type][id]) {
+        delete updated[type][id];
+      } else {
+        // If type not specified, search all categories
+        Object.keys(updated).forEach(category => {
+          if (updated[category][id]) {
+            delete updated[category][id];
+          }
+        });
+      }
+      
+      return updated;
+    });
+    
+    // Recompile after unregistering
+    setTimeout(compileResults, 0);
+  }, []);
+  
+  // Compile results from all registered modules
+  const compileResults = useCallback(() => {
+    console.log('Compiling results from all modules...');
+    
+    // Initialize results with default values
+    const results = {
+      costsByYear: { '2026': 0, '2027': 0, '2028': 0, '2029': 0 },
+      revenuesByYear: { '2026': 0, '2027': 0, '2028': 0, '2029': 0 },
+      netProfitByYear: { '2026': 0, '2027': 0, '2028': 0, '2029': 0 },
+      summaryMetrics: {
+        totalThreeYearRevenue: 0,
+        totalThreeYearCosts: 0,
+        totalThreeYearProfit: 0,
+        averageYearlyRevenue: 0,
+        averageYearlyCosts: 0,
+        revenueGrowthRate: 0,
+        costGrowthRate: 0,
+        breakEvenYear: 'Not calculated'
+      }
+    };
+    
+    try {
+      // First, check for schema calculators
+      const schemaResults = {};
+      if (registeredModules.calculator) {
+        Object.keys(registeredModules.calculator).forEach(id => {
+          try {
+            const getResults = registeredModules.calculator[id];
+            if (typeof getResults === 'function') {
+              const moduleResults = getResults();
+              console.log(`Results from calculator module ${id}:`, moduleResults);
+              
+              if (moduleResults && moduleResults.isReady) {
+                schemaResults[id] = moduleResults;
+              }
+            }
+          } catch (error) {
+            console.error(`Error getting results from calculator module ${id}:`, error);
+          }
+        });
+      }
+      
+      // Collect results from registered cost modules
+      const costModuleResults = [];
+      if (registeredModules.costs) {
+        Object.keys(registeredModules.costs).forEach(id => {
+          try {
+            const getResults = registeredModules.costs[id];
+            if (typeof getResults === 'function') {
+              const moduleResults = getResults();
+              if (moduleResults && moduleResults.isReady) {
+                costModuleResults.push(moduleResults);
+              }
+            }
+          } catch (error) {
+            console.error(`Error getting results from cost module ${id}:`, error);
+          }
+        });
+      }
+      
+      // Collect results from registered revenue modules
+      const revenueModuleResults = [];
+      if (registeredModules.revenue) {
+        Object.keys(registeredModules.revenue).forEach(id => {
+          try {
+            const getResults = registeredModules.revenue[id];
+            if (typeof getResults === 'function') {
+              const moduleResults = getResults();
+              if (moduleResults && moduleResults.isReady) {
+                revenueModuleResults.push(moduleResults);
+              }
+            }
+          } catch (error) {
+            console.error(`Error getting results from revenue module ${id}:`, error);
+          }
+        });
+      }
+      
+      // Consider results valid if we have any valid schema results or any cost or revenue results
+      const hasValidResults = 
+        Object.keys(schemaResults).length > 0 || 
+        costModuleResults.length > 0 || 
+        revenueModuleResults.length > 0;
+      
+      if (hasValidResults) {
+        // Calculate totals for each year
+        const years = ['2026', '2027', '2028', '2029'];
+        
+        years.forEach(year => {
+          // Start with schema results if available
+          if (Object.keys(schemaResults).length > 0) {
+            Object.values(schemaResults).forEach(schemaResult => {
+              if (schemaResult.totalCostsByYear && schemaResult.totalCostsByYear[year]) {
+                results.costsByYear[year] += schemaResult.totalCostsByYear[year];
+              }
+              if (schemaResult.totalRevenueByYear && schemaResult.totalRevenueByYear[year]) {
+                results.revenuesByYear[year] += schemaResult.totalRevenueByYear[year];
+              }
+            });
+          }
+          
+          // Add costs from cost modules
+          costModuleResults.forEach(moduleResult => {
+            if (moduleResult.totalCostsByYear && moduleResult.totalCostsByYear[year]) {
+              results.costsByYear[year] += moduleResult.totalCostsByYear[year];
+            }
+          });
+          
+          // Add revenues from revenue modules
+          revenueModuleResults.forEach(moduleResult => {
+            if (moduleResult.totalRevenueByYear && moduleResult.totalRevenueByYear[year]) {
+              results.revenuesByYear[year] += moduleResult.totalRevenueByYear[year];
+            }
+          });
+          
+          // Calculate net profit for each year
+          results.netProfitByYear[year] = results.revenuesByYear[year] - results.costsByYear[year];
+        });
+        
+        // Calculate summary metrics
+        // Total 3-year revenues and costs
+        results.summaryMetrics.totalThreeYearRevenue = 
+          results.revenuesByYear['2026'] + 
+          results.revenuesByYear['2027'] + 
+          results.revenuesByYear['2028'];
+          
+        results.summaryMetrics.totalThreeYearCosts = 
+          results.costsByYear['2026'] + 
+          results.costsByYear['2027'] + 
+          results.costsByYear['2028'];
+          
+        results.summaryMetrics.totalThreeYearProfit = 
+          results.summaryMetrics.totalThreeYearRevenue - 
+          results.summaryMetrics.totalThreeYearCosts;
+          
+        // Calculate average yearly figures
+        results.summaryMetrics.averageYearlyRevenue = results.summaryMetrics.totalThreeYearRevenue / 3;
+        results.summaryMetrics.averageYearlyCosts = results.summaryMetrics.totalThreeYearCosts / 3;
+        
+        // Calculate growth rates
+        if (results.revenuesByYear['2026'] > 0) {
+          results.summaryMetrics.revenueGrowthRate = 
+            (results.revenuesByYear['2028'] / results.revenuesByYear['2026']) ** (1/2) - 1;
+        }
+        
+        if (results.costsByYear['2026'] > 0) {
+          results.summaryMetrics.costGrowthRate = 
+            (results.costsByYear['2028'] / results.costsByYear['2026']) ** (1/2) - 1;
+        }
+        
+        // Determine break-even year
+        const breakEvenYear = years.find(year => results.netProfitByYear[year] > 0);
+        if (breakEvenYear) {
+          results.summaryMetrics.breakEvenYear = breakEvenYear;
+        } else {
+          results.summaryMetrics.breakEvenYear = 'Not within forecast period';
+        }
+      }
+      
+      // Only update state if there's a meaningful change to avoid unnecessary renders
+      const resultsChanged = 
+        JSON.stringify(results) !== JSON.stringify(compiledResults);
+        
+      if (resultsChanged) {
+        console.log('Updated compiled results:', results);
+        setCompiledResults(results);
+      } else {
+        console.log('No change in compiled results');
+      }
+      
+    } catch (error) {
+      console.error('Error compiling results:', error);
+    }
+  }, [registeredModules, compiledResults]);
+  
+  // Mock function for saving/loading scenarios (simplified for debug)
+  const saveScenario = useCallback(() => {
+    console.log('Saving scenario (mock implementation)');
+    return { id: 'scenario-' + Date.now(), data: compiledResults };
+  }, [compiledResults]);
+  
+  const loadScenario = useCallback((scenarioId) => {
+    console.log(`Loading scenario ${scenarioId} (mock implementation)`);
+    // In a real implementation, this would load scenario data from storage
+    return true;
+  }, []);
+  
+  // Context value
+  const contextValue = {
+    currentUser: mockCurrentUser,
+    registeredModules,
+    compiledResults,
+    registerModule,
+    unregisterModule,
+    compileResults,
+    saveScenario,
+    loadScenario
+  };
+  
+  return (
+    <DashboardContext.Provider value={contextValue}>
+      {children}
+    </DashboardContext.Provider>
+  );
+};
+
+export default DashboardContext; 

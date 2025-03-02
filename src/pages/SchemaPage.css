@@ -1,0 +1,191 @@
+.schema-page {
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  gap: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.schema-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.schema-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.schema-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.schema-import-button {
+  background-color: #4c51bf;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.schema-import-button:hover {
+  background-color: #434190;
+}
+
+.schema-tabs {
+  display: flex;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 20px;
+}
+
+.tab-button {
+  padding: 10px 20px;
+  border: none;
+  background: none;
+  font-size: 16px;
+  font-weight: 500;
+  color: #718096;
+  cursor: pointer;
+  position: relative;
+}
+
+.tab-button.active {
+  color: #4c51bf;
+}
+
+.tab-button.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #4c51bf;
+}
+
+.schema-content {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.loading-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.loading-spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid #e2e8f0;
+  border-top: 3px solid #4c51bf;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 10px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-boundary {
+  padding: 20px;
+  background-color: #fff5f5;
+  border: 1px solid #fed7d7;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.error-boundary h3 {
+  color: #e53e3e;
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .schema-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  
+  .schema-import-button {
+    width: 100%;
+  }
+}
+
+.import-prompt {
+  margin-bottom: 20px;
+  background-color: #ebf4ff;
+  border: 1px solid #c3dafe;
+  border-radius: 6px;
+  padding: 15px;
+  position: relative;
+}
+
+.import-prompt-content {
+  max-width: 600px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.import-prompt h3 {
+  font-size: 18px;
+  color: #4c51bf;
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.import-prompt p {
+  color: #4a5568;
+  margin-bottom: 8px;
+}
+
+.import-prompt-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 15px;
+  gap: 12px;
+}
+
+.import-button {
+  background-color: #4c51bf;
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.import-button:hover {
+  background-color: #434190;
+}
+
+.dismiss-button {
+  background-color: #e2e8f0;
+  color: #4a5568;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.dismiss-button:hover {
+  background-color: #cbd5e0;
+} 

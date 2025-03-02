@@ -1,0 +1,98 @@
+.item-name {
+  font-weight: 500;
+  color: #2d3748;
+}
+
+.item-name-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.item-name-text {
+  flex-grow: 1;
+}
+
+.item-description {
+  font-size: 14px;
+  cursor: help;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.item-description:hover {
+  opacity: 1;
+}
+
+.min-value, .max-value {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.9rem;
+}
+
+.min-value {
+  color: #718096;
+}
+
+.max-value {
+  color: #4a5568;
+  font-weight: 500;
+}
+
+/* New styles for editing functionality */
+.editing-row {
+  background-color: #f8fafc;
+}
+
+.edit-input {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid #cbd5e0;
+  border-radius: 4px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.9rem;
+}
+
+.actions {
+  white-space: nowrap;
+}
+
+.edit-btn, .save-btn, .cancel-btn {
+  padding: 4px 8px;
+  margin: 0 2px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.edit-btn {
+  background-color: #e2e8f0;
+  border: 1px solid #cbd5e0;
+  color: #4a5568;
+}
+
+.edit-btn:hover {
+  background-color: #cbd5e0;
+}
+
+.save-btn {
+  background-color: #68d391;
+  border: 1px solid #48bb78;
+  color: #2f855a;
+}
+
+.save-btn:hover {
+  background-color: #48bb78;
+  color: white;
+}
+
+.cancel-btn {
+  background-color: #fed7d7;
+  border: 1px solid #fc8181;
+  color: #e53e3e;
+}
+
+.cancel-btn:hover {
+  background-color: #fc8181;
+  color: white;
+} 
